@@ -30,4 +30,4 @@ Important notes:
 - Default limit is 30 issues
 - Sorted by creation date, most recent first (sort:created-desc)
 - Only displays number and title for simplicity
-- Useful for finding issue numbers to use with `/github/checkout-issue` or other commands
+- Useful for finding issue numbers to use with `/github:checkout-issue` or other commands

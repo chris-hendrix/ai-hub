@@ -1,0 +1,12 @@
+{
+  "name": "dev",
+  "description": "Git and GitHub workflow automation commands - includes commit, PR, issue management, and branch workflows",
+  "version": "1.0.0",
+  "author": {
+    "name": "chris-hendrix",
+    "url": "https://github.com/chris-hendrix"
+  },
+  "repository": "https://github.com/chris-hendrix/ai-hub",
+  "license": "MIT",
+  "keywords": ["git", "github", "workflow", "automation", "pr", "issues", "commits", "claude-code", "development"]
+}

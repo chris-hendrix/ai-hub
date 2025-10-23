@@ -24,11 +24,11 @@ Follow these steps:
    - Ask the user to confirm the branch name using AskUserQuestion
    - If confirmed: Create and checkout the new branch with `git checkout -b "<branch-name>"`
    - If not confirmed or user cancels: abort the process
-3. Run the `/git/commit push` command to stage, commit, and push changes
+3. Run the `/git:commit push` command to stage, commit, and push changes
 4. Create a PR using `gh pr create` with:
    - A clear title
    - Add `--draft` flag if the argument is `draft` or not provided (default behavior)
-   - A body following the template in `.claude/templates/pr_template.md` with:
+   - A body following the template in `${CLAUDE_PLUGIN_ROOT}/templates/pr_template.md` with:
      - ## Description section (with optional issue links on first line, followed by brief description)
      - ## Changes section (using circle bullets •)
 5. Display the PR URL to the user

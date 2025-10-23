@@ -19,7 +19,7 @@ Follow these steps:
 3. If no PR is found:
    - Notify the user that no PR exists for this branch
    - Stop the process - do not continue
-4. Use the SlashCommand tool to run `/git/commit push` to stage, commit, and push changes
+4. Use the SlashCommand tool to run `/git:commit push` to stage, commit, and push changes
 5. If an argument was provided:
    - If `draft`: Mark as draft using `gh pr ready --undo <pr-number>`
    - If `publish`: Mark as ready using `gh pr ready <pr-number>`
