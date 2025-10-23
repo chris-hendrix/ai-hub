@@ -9,12 +9,12 @@ allowed-tools: Bash(gh *), Bash(git *), Bash(git pull), SlashCommand, AskUserQue
 Create a new branch linked to a GitHub issue and check it out. The branch name will include the git user, issue number, and a short description.
 
 The command accepts an optional issue number as the argument:
-- With number: `/github:checkout-issue 123`
+- With number: `/dev:github:issue:checkout 123`
 - Without number: Will display issues and prompt for selection
 
 Follow these steps:
 1. If no issue number provided:
-   - Use SlashCommand to run `/github:list-issues` to display open issues
+   - Use SlashCommand to run `/dev:github:issue:list` to display open issues
    - Ask the user to select an issue number using AskUserQuestion
 2. Check the current branch with `git branch --show-current`
 3. If the current branch is a remote tracking branch (main, master, develop, etc.):
