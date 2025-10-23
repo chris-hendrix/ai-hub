@@ -33,9 +33,7 @@ Follow these steps:
    gh pr merge <pr-number> --squash --delete-branch
    ```
    Note: `--delete-branch` deletes both local and remote branch after merge
-7. After successful merge:
-   - Checkout the main branch with `git checkout main`
-   - Pull the most recent changes with `git pull`
+7. After successful merge, run the `/dev:git:checkout-default` command to return to the default branch with latest changes
 8. Display confirmation that the PR was merged
 
 Important notes:

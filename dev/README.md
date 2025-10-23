@@ -1,358 +1,213 @@
 # Dev Plugin
 
-A comprehensive Claude Code plugin that provides Git and GitHub workflow automation commands. Streamline your development process with intelligent commit management, PR creation, issue tracking, and branch workflows.
-
-## Features
-
-- **Git Workflows**: Automated commit and push operations
-- **GitHub Integration**: Complete issue and PR management
-- **Smart Branch Management**: Issue-linked branch creation
-- **Template Support**: Consistent PR and issue formatting
-- **Interactive Workflows**: Step-by-step guidance for complex operations
+Claude Code plugin for Git and GitHub workflow automation. Streamlines commit management, PR creation, issue tracking, and branch workflows.
 
 ## Installation
 
-### From GitHub Repository
-
+**From GitHub:**
 ```bash
 /plugin install github:chris-hendrix/ai-hub#dev
 ```
 
-### From Local Clone
-
-If you've cloned this repository locally:
-
+**From Local:**
 ```bash
 /plugin marketplace add /path/to/your/ai-hub
 /plugin install dev@ai-hub-dev
 ```
 
-## Available Commands
+## Commands
 
-### Git Commands
+### Git Workflows
 
-#### `/git:commit [push]`
+#### `/dev:git:commit [push]`
+Stage and commit changes, optionally push to remote.
+- Prevents commits on main/master
+- Matches repository commit style
+- Excludes secrets
 
-Stage changes and create a commit, with optional push to remote.
-
-**Arguments:**
-- No argument: Stage and commit only
-- `push`: Stage, commit, and push to remote
-
-**Features:**
-- Prevents commits on main/master branches
-- Analyzes git history to match commit message style
-- Ensures proper formatting with HEREDOC
-- Excludes files with secrets
-
-**Example:**
 ```bash
-/git:commit push
+/dev:git:commit push
+```
+
+#### `/dev:git:checkout-new [branch-name]`
+Create and checkout a new branch with auto-generated or custom name.
+- Generates names from changes: `username/short-description`
+- Confirms before creating
+
+```bash
+/dev:git:checkout-new
+```
+
+#### `/dev:git:checkout-default`
+Checkout default branch and pull latest changes.
+- Stashes uncommitted changes
+- Returns to main/master
+
+```bash
+/dev:git:checkout-default
+```
+
+#### `/dev:git:squash`
+Squash all commits on current branch into one.
+- Prevents squashing on main/master
+- Auto-generates consolidated commit message
+- Optionally force pushes
+
+```bash
+/dev:git:squash
+```
+
+#### `/dev:git:squash-amend`
+Squash all commits and amend with current changes.
+- Runs squash first
+- Amends with uncommitted changes
+- Regenerates commit message from full diff
+
+```bash
+/dev:git:squash-amend
 ```
 
 ---
 
-### GitHub Commands
+### GitHub Issues
 
-#### `/github:create-issue "description"`
-
-Create a GitHub issue with a well-formatted title and description based on the issue template.
-
-**Arguments:**
-- `description`: Brief description of the issue (required)
-
-**Features:**
-- Uses issue template for consistent formatting
-- Auto-detects issue type (bug, enhancement, task, documentation)
+#### `/dev:github:issue:create "description"`
+Create issue with template formatting.
+- Auto-detects type (bug/enhancement/task)
 - Preview before creating
-- Automatic label application
+- Applies labels automatically
 
-**Example:**
 ```bash
-/github:create-issue "Add dark mode toggle to settings"
+/dev:github:issue:create "Add dark mode"
+```
+
+#### `/dev:github:issue:list [open|closed|all]`
+List issues (default: open, 30 most recent).
+
+```bash
+/dev:github:issue:list
+```
+
+#### `/dev:github:issue:checkout [issue-number]`
+Create branch linked to issue.
+- Auto-assigns issue
+- Names: `username/123-description`
+- Stashes changes automatically
+
+```bash
+/dev:github:issue:checkout 42
+```
+
+#### `/dev:github:issue:plan [issue-number]`
+Create implementation plan for issue.
+- Auto-detects from branch
+- Breaks down work
+- Interactive planning
+
+```bash
+/dev:github:issue:plan
 ```
 
 ---
 
-#### `/github:create-pr [draft|publish]`
+### GitHub Pull Requests
 
-Automate the workflow to push changes and create a pull request.
-
-**Arguments:**
-- `draft` (default): Creates a draft PR
-- `publish`: Creates a published/ready-for-review PR
-
-**Features:**
+#### `/dev:github:pr:create [draft|publish]`
+Create PR with template (default: draft).
 - Creates branch from main if needed
-- Stages, commits, and pushes changes automatically
-- Uses PR template for consistent formatting
-- Auto-generates branch names from changes
+- Stages, commits, and pushes
+- Uses PR template
 
-**Example:**
 ```bash
-/github:create-pr publish
+/dev:github:pr:create publish
 ```
 
----
+#### `/dev:github:pr:update [draft|publish]`
+Update PR and change draft status.
+- Finds PR for current branch
+- Pushes changes
+- Toggles draft/ready
 
-#### `/github:update-pr [draft|publish]`
-
-Update the PR for the current branch and optionally change draft status.
-
-**Arguments:**
-- No argument: Push changes only
-- `draft`: Mark PR as draft
-- `publish`: Mark PR as ready for review
-
-**Features:**
-- Automatically finds PR for current branch
-- Pushes latest changes
-- Toggles draft/ready status
-
-**Example:**
 ```bash
-/github:update-pr publish
+/dev:github:pr:update publish
 ```
 
----
-
-#### `/github:list-issues [open|closed|all]`
-
-List GitHub issues in the repository with optional filters.
-
-**Arguments:**
-- No argument: Lists open issues (default)
-- `open`: Lists open issues
-- `closed`: Lists closed issues
-- `all`: Lists all issues
-
-**Features:**
-- Shows 30 most recent issues
-- Sorted by creation date (newest first)
-- Clean format: `#123: Issue title`
-
-**Example:**
-```bash
-/github:list-issues open
-```
-
----
-
-#### `/github:checkout-issue [issue-number]`
-
-Create and checkout a branch linked to a GitHub issue.
-
-**Arguments:**
-- `issue-number` (optional): Issue number to create branch for
-
-**Features:**
-- Auto-assigns issue to you
-- Creates branch from current branch
-- Auto-generated branch names: `username/123-short-description`
-- Stashes/pops changes automatically
-- Interactive issue selection if no number provided
-
-**Example:**
-```bash
-/github:checkout-issue 42
-```
-
----
-
-#### `/github:plan-issue [issue-number]`
-
-Create an implementation plan for a GitHub issue.
-
-**Arguments:**
-- `issue-number` (optional): Issue number to plan for
-
-**Features:**
-- Auto-detects issue from branch name
-- Breaks down work into logical steps
-- Identifies files to modify
-- Notes dependencies and challenges
-- Interactive planning session
-
-**Example:**
-```bash
-/github:plan-issue
-```
-
----
-
-#### `/github:merge-pr [pr-number]`
-
-Squash and merge a pull request after confirmation.
-
-**Arguments:**
-- `pr-number` (optional): PR number to merge
-
-**Features:**
-- Auto-detects PR from current branch
-- Requires confirmation before merging
-- Squash merge by default
+#### `/dev:github:pr:merge [pr-number]`
+Squash and merge PR after confirmation.
+- Auto-detects from branch
+- Requires confirmation
 - Deletes branch after merge
 
-**Example:**
 ```bash
-/github:merge-pr
+/dev:github:pr:merge
 ```
 
 ---
-
-### Hello Command
-
-#### `/hello [language]`
-
-Verification command to test plugin installation.
-
-**Arguments:**
-- `language` (optional): Language for greeting
-
-**Example:**
-```bash
-/hello spanish
-```
-
----
-
-## Templates
-
-The plugin includes two templates for consistent formatting:
-
-### Issue Template
-
-Located at `templates/issue_template.md`, includes:
-- Description section
-- Details (for bugs or features)
-- Acceptance criteria checklist
-- Additional context
-
-### PR Template
-
-Located at `templates/pr_template.md`, includes:
-- Description with optional issue links
-- Changes list (circle bullet format)
-
-Commands automatically use these templates via `${CLAUDE_PLUGIN_ROOT}/templates/`.
 
 ## Workflow Examples
 
-### Starting Work on a New Issue
-
+### Full Issue Workflow
 ```bash
-# 1. List open issues
-/github:list-issues
-
-# 2. Checkout issue and create branch
-/github:checkout-issue 42
-
-# 3. Plan the implementation
-/github:plan-issue
-
-# 4. Make your changes, then create PR
-/github:create-pr draft
-
-# 5. Update PR as you work
-/github:update-pr
-
-# 6. Publish when ready
-/github:update-pr publish
-
-# 7. Merge when approved
-/github:merge-pr
+/dev:github:issue:list                  # List open issues
+/dev:github:issue:checkout 42           # Create branch for issue
+/dev:github:issue:plan                  # Plan implementation
+# Make changes...
+/dev:github:pr:create draft             # Create draft PR
+/dev:github:pr:update publish           # Publish when ready
+/dev:github:pr:merge                    # Merge when approved
 ```
 
-### Quick Fix Workflow
-
+### Quick Fix
 ```bash
-# 1. Create issue
-/github:create-issue "Fix broken link in footer"
-
-# 2. Checkout and fix
-/github:checkout-issue
-
-# 3. Create and publish PR
-/github:create-pr publish
-
-# 4. Merge
-/github:merge-pr
+/dev:github:issue:create "Fix bug"      # Create issue
+/dev:github:issue:checkout              # Create branch
+# Make changes...
+/dev:github:pr:create publish           # Create and publish PR
+/dev:github:pr:merge                    # Merge
 ```
 
 ## Requirements
 
 - Claude Code v2.0+
-- Git installed and configured
-- GitHub CLI (`gh`) installed and authenticated
-- GitHub repository with issues and PRs enabled
+- Git and GitHub CLI (`gh`) authenticated
+- GitHub repository with issues/PRs enabled
 
-## Plugin Structure
+## Templates
+
+**Issue Template** (`templates/issue_template.md`):
+- Description, details, acceptance criteria
+
+**PR Template** (`templates/pr_template.md`):
+- Description with issue links, changes list
+
+## Structure
 
 ```
 dev/
-├── .claude-plugin/
-│   └── plugin.json          # Plugin metadata
+├── .claude-plugin/plugin.json
 ├── commands/
 │   ├── git/
-│   │   └── commit.md        # Git commit command
+│   │   ├── checkout-default.md
+│   │   ├── checkout-new.md
+│   │   ├── commit.md
+│   │   ├── squash.md
+│   │   └── squash-amend.md
 │   ├── github/
-│   │   ├── checkout-issue.md
-│   │   ├── create-issue.md
-│   │   ├── create-pr.md
-│   │   ├── list-issues.md
-│   │   ├── merge-pr.md
-│   │   ├── plan-issue.md
-│   │   └── update-pr.md
-│   └── hello.md             # Test command
-├── templates/
-│   ├── issue_template.md    # Issue template
-│   └── pr_template.md       # PR template
-└── README.md                # This file
+│   │   ├── issue/
+│   │   │   ├── checkout.md
+│   │   │   ├── create.md
+│   │   │   ├── list.md
+│   │   │   └── plan.md
+│   │   └── pr/
+│   │       ├── create.md
+│   │       ├── merge.md
+│   │       └── update.md
+│   └── hello.md
+└── templates/
+    ├── issue_template.md
+    └── pr_template.md
 ```
-
-## Configuration
-
-The plugin works out of the box with no additional configuration required. Commands use standard Git and GitHub CLI settings from your environment.
-
-### Optional: Permissions
-
-If you want to pre-approve certain commands, add to your `.claude/settings.local.json`:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(git *)",
-      "Bash(gh *)"
-    ]
-  }
-}
-```
-
-## Contributing
-
-To contribute improvements or report issues:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
 
 ## License
 
 MIT
-
-## Author
-
-chris-hendrix
-https://github.com/chris-hendrix
-
-## Version History
-
-### 1.0.0 (2025-01-21)
-- Initial release
-- Git commit and push workflows
-- Complete GitHub issue and PR management
-- Issue-linked branch creation
-- Template support for consistent formatting
-- Interactive planning and execution

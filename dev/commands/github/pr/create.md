@@ -15,25 +15,21 @@ The command accepts an optional argument:
 Follow these steps:
 1. Check the current branch with `git branch --show-current`
 2. If on main or master branches:
-   - Run `git status` and `git diff` to see all changes
-   - Analyze the changes to generate a short description (3-4 words, lowercase kebab-case)
-   - Get the git user from `git config user.name`
-   - Generate a branch name in the format: `<username>/<short-description>`
-     - Convert username to lowercase and remove all spaces
-     - Example: `johndoe/add-login-button`
-   - Ask the user to confirm the branch name using AskUserQuestion
-   - If confirmed: Create and checkout the new branch with `git checkout -b "<branch-name>"`
-   - If not confirmed or user cancels: abort the process
-3. Run the `/git:commit push` command to stage, commit, and push changes
-4. Create a PR using `gh pr create` with:
+   - First, pull the latest changes from origin with `git pull` to ensure the base branch is up to date
+   - Then run the `/dev:git:checkout-new` command to create and checkout a new branch
+   - If the user cancels or the command fails: abort the process
+3. If on a feature branch:
+   - Get the default branch name with `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`
+   - Fetch and update the base branch with `git fetch origin <base-branch>:<base-branch>` to ensure it's up to date
+4. Run the `/dev:git:commit push` command to stage, commit, and push changes
+5. Create a PR using `gh pr create` with:
    - A clear title
    - Add `--draft` flag if the argument is `draft` or not provided (default behavior)
    - A body following the template in `${CLAUDE_PLUGIN_ROOT}/templates/pr_template.md` with:
      - ## Description section (with optional issue links on first line, followed by brief description)
      - ## Changes section (using circle bullets •)
-5. Display the PR URL to the user
+6. Display the PR URL to the user
 
 Important notes:
-- If on main/master, creates a new branch first before committing
-- Branch name is generated from changes and requires user confirmation
+- If on main/master, creates a new branch first using `/git:checkout-new` before committing
 - Use a HEREDOC for PR body to ensure proper formatting

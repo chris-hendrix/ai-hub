@@ -9,7 +9,7 @@ allowed-tools: Bash(gh *), Bash(git *), SlashCommand, AskUserQuestion
 Create an implementation plan for a GitHub issue. This command helps you break down the issue into actionable tasks before starting work.
 
 The command accepts an optional issue number as the argument:
-- With number: `/github:plan-issue 123`
+- With number: `/dev:github:issue:plan 123`
 - Without number: Will try to detect from branch, or display issues and prompt for selection
 
 Follow these steps:
@@ -19,7 +19,7 @@ Follow these steps:
      - Get current branch with `git branch --show-current`
      - Check if branch name contains issue number pattern (e.g., `username/123-description`)
      - Extract issue number from branch name if present
-   - If no issue found, use SlashCommand to run `/github:list-issues` to display open issues
+   - If no issue found, use SlashCommand to run `/dev:github:issue:list` to display open issues
    - If still no issue, ask user to select an issue number using AskUserQuestion
 2. Fetch the full issue details using `gh issue view <issue-number>`
 3. Read and analyze the issue:
