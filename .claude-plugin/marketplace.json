@@ -1,0 +1,18 @@
+{
+  "name": "ai-hub-dev",
+  "owner": {
+    "name": "chris-hendrix",
+    "email": "[email protected]"
+  },
+  "plugins": [
+    {
+      "name": "dev",
+      "source": "./dev",
+      "description": "Git and GitHub workflow automation commands",
+      "version": "1.0.0",
+      "author": {
+        "name": "chris-hendrix"
+      }
+    }
+  ]
+}

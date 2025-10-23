@@ -11,7 +11,7 @@ Create a GitHub issue with a well-formatted title and description based on the i
 The command accepts a description of the issue as the argument (e.g., "create a new login button").
 
 Follow these steps:
-1. Read the issue template from `.claude/templates/issue_template.md`
+1. Read the issue template from `${CLAUDE_PLUGIN_ROOT}/templates/issue_template.md`
 2. Analyze the user's description and determine:
    - Issue type (bug, enhancement, task, documentation)
    - Draft a clear, concise title
