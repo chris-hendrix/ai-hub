@@ -1,7 +1,7 @@
 ---
 description: Squash and merge a pull request after confirmation
 argument-hint: [pr-number]
-allowed-tools: Bash(gh *), AskUserQuestion
+allowed-tools: Bash(gh *), Bash(git *), AskUserQuestion
 ---
 
 # Merge PR Command
@@ -38,8 +38,12 @@ Follow these steps:
    gh pr merge <pr-number> --squash --delete-branch
    ```
    Note: `--delete-branch` deletes both local and remote branch after merge
-8. After successful merge, run the `/dev:git:checkout-default` command to return to the default branch with latest changes
-9. Display confirmation that the PR was merged
+8. After successful merge:
+   - Get the default branch name with `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'`
+   - Checkout the default branch with `git checkout <branch-name>`
+   - Pull the latest changes with `git pull`
+   Note: `gh pr merge --delete-branch` automatically switches to the default branch, so we just need to pull
+9. Display confirmation that the PR was merged and you're on the default branch
 
 Important notes:
 - Always use `--squash` to squash commits into one
