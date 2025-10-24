@@ -166,11 +166,37 @@ Squash and merge PR after confirmation.
 /dev:github:pr:merge                    # Merge
 ```
 
+## MCP Integration
+
+This plugin includes the Playwright MCP server for AI-powered browser automation.
+
+### Playwright MCP
+
+Enables Claude Code to interact with web pages using structured accessibility snapshots instead of screenshots.
+
+**Features:**
+- Lightweight, vision-model-independent web automation
+- Browser automation via accessibility tree
+- Support for Chrome, Firefox, WebKit, Edge
+- Deterministic, LLM-friendly page analysis
+
+**Requirements:**
+- Node.js 18 or newer
+
+**Configuration:** The `.mcp.json` file at the plugin root automatically configures the Playwright MCP server when the plugin is active.
+
+**Resources:**
+- [Playwright MCP GitHub](https://github.com/microsoft/playwright-mcp)
+- [Claude Code MCP Guide](https://docs.claude.com/en/docs/claude-code/mcp)
+
+---
+
 ## Requirements
 
 - Claude Code v2.0+
 - Git and GitHub CLI (`gh`) authenticated
 - GitHub repository with issues/PRs enabled
+- Node.js 18+ (for Playwright MCP)
 
 ## Templates
 
@@ -185,6 +211,7 @@ Squash and merge PR after confirmation.
 ```
 dev/
 ├── .claude-plugin/plugin.json
+├── .mcp.json
 ├── commands/
 │   ├── git/
 │   │   ├── checkout-default.md
