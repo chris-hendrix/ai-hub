@@ -1,0 +1,45 @@
+version: 3
+name: ai-hub
+displayName: AI Hub MCP Catalog
+registry:
+  graphite:
+    description: Graphite CLI MCP server for managing stacked pull requests and GitHub workflows. Enables AI agents to automatically create stacked PRs and break down large changes into reviewable chunks.
+    title: Graphite CLI
+    type: server
+    dateAdded: "2025-10-26T00:00:00Z"
+    image: graphite-mcp:local
+    ref: ""
+    source: https://github.com/withgraphite/homebrew-tap
+    icon: https://avatars.githubusercontent.com/u/83215888?s=200&v=4
+    tools:
+      - name: run_gt_cmd
+      - name: learn_gt
+    secrets:
+      - name: graphite.auth_token
+        env: GRAPHITE_AUTH_TOKEN
+        example: your_graphite_token_here
+    volumes:
+      - '{{graphite.paths|volume|into}}'
+    prompts: 0
+    resources: {}
+    config:
+      - name: graphite
+        description: Configure git repository paths that Graphite can access
+        type: object
+        properties:
+          paths:
+            type: array
+            items:
+              type: string
+            description: List of git repository paths to mount
+        required:
+          - paths
+    metadata:
+      category: devops
+      tags:
+        - git
+        - github
+        - pr
+        - stacking
+        - devops
+      license: AGPL-3.0
