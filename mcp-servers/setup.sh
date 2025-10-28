@@ -52,9 +52,38 @@ docker mcp server enable graphite
 
 echo -e "\n${GREEN}✓ Graphite MCP Server setup complete!${NC}\n"
 
+# Re-enable default Docker MCP catalog servers
+echo -e "${YELLOW}Enabling default Docker MCP catalog servers...${NC}"
+
+# Servers that don't require OAuth
+BASIC_SERVERS=("database-server" "playwright")
+
+# Servers that require OAuth authorization
+OAUTH_SERVERS=("linear" "sentry-remote")
+
+# Enable basic servers
+for server in "${BASIC_SERVERS[@]}"; do
+    echo "Enabling ${server}..."
+    docker mcp server enable "${server}" 2>/dev/null || true
+done
+
+# Enable OAuth servers and authorize if needed
+for server in "${OAUTH_SERVERS[@]}"; do
+    echo "Enabling ${server}..."
+    docker mcp server enable "${server}" 2>/dev/null || true
+
+    # Check OAuth status and authorize if needed
+    if docker mcp oauth ls | grep "^${server}" | grep -q "not authorized"; then
+        echo "  Authorizing ${server} (this will open a browser)..."
+        docker mcp oauth authorize "${server}" 2>/dev/null || echo "  ${server} OAuth failed"
+    else
+        echo "  ${server} already authorized, skipping..."
+    fi
+done
+
 # Show enabled servers
-echo -e "${YELLOW}Currently enabled MCP servers:${NC}"
+echo -e "\n${YELLOW}Currently enabled MCP servers:${NC}"
 docker mcp server ls
 
 echo -e "\n${GREEN}Setup complete!${NC}"
-echo "You can now use Graphite commands through MCP-enabled AI agents."
+echo "You can now use all MCP servers through AI agents."
