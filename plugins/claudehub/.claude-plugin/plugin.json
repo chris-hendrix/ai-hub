@@ -1,5 +1,0 @@
-{
-  "name": "claudehub",
-  "description": "Setup coordinator - installs claudehub ecosystem plugins, MCPs, and skills",
-  "version": "2.0.0"
-}
