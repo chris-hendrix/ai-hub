@@ -2,7 +2,7 @@
 
 Create detailed, actionable implementation plans with enough specificity for an LLM to implement.
 
-**Location**: Plans are optionally saved to `.thoughts/plans/` — the skill will offer to save after completing the workflow.
+**Location**: Plans are optionally saved to `.thoughts/plans/` — run `/rpi write` after creating the plan to persist it.
 
 ## Purpose
 
@@ -20,7 +20,8 @@ A good plan has:
 
 - **Self-contained context**: Architecture section must include all details needed to implement without prior conversation history
 - **Task-level verification**: Each task is independently verifiable with inline checks for tight feedback loops
-- **Test-driven approach**: Plans include testing strategy; tests are set up first and updated as implementation progresses
+- **TDD core loop**: Each task is a vertical slice — RED (write failing test), GREEN (minimal code to pass), CHECK (verify). One behavior per task.
+- **Refactor after GREEN**: After each task goes green, pause. Extract duplication, deepen modules, clean up. Run tests after each refactor step. Never refactor while RED.
 - **Enough detail for LLM implementation**: Include code structure and patterns, not full code
 - **Actionable and granular**: Break work down to specific actions an LLM can execute
 - **Living document**: Checkboxes track progress; the plan is the source of truth across sessions
@@ -33,15 +34,17 @@ A good plan has:
 
 **Success Criteria** - Requirements that must pass for implementation to be successful. Checkboxes for acceptance criteria (functional, technical, and documentation). These define "done" for the entire implementation, verified at the end.
 
-**Current State** - Existing files, patterns, architecture (with `file:line` references)
-
 **What We're NOT Doing** - Explicit scope boundaries
+
+**Risks & Blockers** - What could go wrong, what we don't know yet, dependencies
+
+**Branch & Commit Strategy** - Branch naming, commit granularity, PR approach (see [git-strategy](./git-strategy.md))
 
 **Architecture** - Technical design with enough detail but not full code:
 - Database/Storage (if applicable) - Schema changes, migrations with key snippets
 - API/Backend (if applicable) - Endpoints, services with function signatures
 - Frontend/UI (if applicable) - Components, state management with component structure
-- Integration Points - How parts connect, data flow
+- Data flow and integration - How parts connect
 
 **Testing Strategy** - Define the testing approach:
 - What types of tests: unit, integration, e2e
@@ -51,7 +54,7 @@ A good plan has:
 
 ### Implementation Checklist (Core)
 
-Breaks work into **Phases → Tasks → Steps** with task-level verification.
+Breaks work into **Phases → Tasks** with task-level verification.
 
 **Phases** (optional):
 - Use `### Phase N: [Name]` headings to group related tasks
@@ -59,17 +62,21 @@ Breaks work into **Phases → Tasks → Steps** with task-level verification.
 
 **Tasks**:
 - Format: `- [ ] **Task N: [Description]**`
-- Small, verifiable chunk of work; usually touches 1-3 related files
+- Small, verifiable chunk of work that adds one behavior; usually touches 1-3 related files
 - Atomic unit completable in one focused work session
 
-**Steps** (nested under tasks):
-- Format: `  - Step N: [Action]`
-- Concrete and actionable with file references when possible
+**RED** (nested under tasks):
+- Format: `  - RED: [Test to write] in [test file path]`
+- Write a failing test that specifies the behavior for this task
 
-**Checks** (nested under tasks):
-- Format: `  - Check N: [Command/verification] - [expected result]`
+**GREEN** (nested under tasks):
+- Format: `  - GREEN: [Code change] in [source file path]`
+- Minimal implementation to make the test pass
+
+**CHECK** (nested under tasks):
+- Format: `  - CHECK: [Command/verification] - [expected result]`
 - Verification that proves the task is complete
-- Include code quality checks (type-check, lint) and test execution
+- Include test execution and code quality checks (type-check, lint)
 
 ### Tracking Sections (End)
 
@@ -146,23 +153,21 @@ status: planned
 - [ ] [Quality requirement - e.g., "No linting errors"]
 - [ ] [Documentation requirement]
 
-## Current State
-
-**Relevant Files:**
-- `path/to/file.ts:123` - Description
-- `path/to/file2.ts:45` - Description
-
-**Key Discoveries:**
-- [Important finding that impacts the plan]
-
 ## What We're NOT Doing
 
 [Explicitly list out-of-scope items]
 
+## Risks & Blockers
+
+[What could go wrong, what we don't know yet, external dependencies needed before starting.]
+
+## Branch & Commit Strategy
+
+[Branch name, commit granularity, PR approach — see git-strategy.md]
+
 ## Architecture
 
-**Integration Points**
-- [How parts connect, data flow, dependencies]
+[Technical design: data flow, component interactions, database changes if applicable. How parts connect.]
 
 ## Testing Strategy
 
@@ -175,14 +180,15 @@ status: planned
 ### Phase 1: [Name]
 
 - [ ] **Task 1: [Description]**
-  - Step 1: [Action in `src/file.ts`]
-  - Step 2: [Action]
-  - Check 1: Run `npm test` - all tests pass
-  - Check 2: Run `npm run type-check` - no errors
+  - RED: Write test for [behavior] in `path/to/test.file`
+  - GREEN: Implement [code change] in `path/to/source.file`
+  - CHECK: `npm test` — test passes
+  - CHECK: `npm run type-check` — no errors
 
 - [ ] **Task 2: [Description]**
-  - Step 1: [Action]
-  - Check 1: [Verification]
+  - RED: Write test for [behavior] in `path/to/test.file`
+  - GREEN: Implement [code change] in `path/to/source.file`
+  - CHECK: `npm test` — test passes
 
 ---
 

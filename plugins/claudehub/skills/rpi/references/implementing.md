@@ -7,6 +7,9 @@ Execute implementation from plans, tickets or issues, or descriptions with manda
 ## Philosophy
 
 - **Critical Review Before Starting**: Read plans skeptically. Assess confidence and raise concerns before executing.
+- **TDD Execution**: Each task starts with RED (write failing test), then GREEN (minimal implementation). See [TDD methodology in planning](./planning.md).
+- **Commit After GREEN**: Commit after each passing green cycle to keep a clean audit trail. See [git-strategy](./git-strategy.md).
+- **Refactor After GREEN**: Pause after each task goes green. Extract duplication, deepen modules. Run tests after each refactor step. Never refactor while RED.
 - **Phase-by-Phase Execution**: Complete one phase fully before moving to the next.
 - **Mandatory Review Checkpoints**: Run success criteria after each phase, get user sign-off.
 - **Fail Fast**: Stop on blockers rather than proceeding speculatively.
@@ -24,9 +27,10 @@ After reviewing the plan, present phases and get user confirmation before starti
 Execute phases sequentially:
 
 1. **Load phase**: Review the phase tasks
-2. **Implement task by task**: Complete steps, update the plan file as you go
-3. **Verify phase**: Run checks, get user sign-off
-4. **Move to next phase**: Load the next phase
+2. **Implement task by task**: For each task, execute RED → GREEN → CHECK → commit. Update the plan file as you go.
+3. **Refactor after phase**: After all tasks in a phase pass, look for extraction and deepening opportunities. Run tests after each refactor step.
+4. **Verify phase**: Run checks, get user sign-off
+5. **Move to next phase**: Load the next phase
 
 ### Stop Conditions
 
@@ -54,9 +58,10 @@ Treat the plan as a living document that tracks both progress and deviations dur
 ### What to Update in the Plan File
 
 **Check off completed items** — replace `- [ ]` with `- [x]` as you complete them:
-- **Steps** - Check as you complete each individual action
-- **Checks** - Check after running verification commands and they pass
-- **Tasks** - Check when all steps and checks in the task are complete
+- **RED** - Check after writing the failing test
+- **GREEN** - Check after implementing and test passes
+- **CHECK** - Check after running verification commands and they pass
+- **Tasks** - Check when all RED, GREEN, and CHECK items in the task are complete
 
 **Update frontmatter status** (if the plan file has a `status` field):
 - `status: planned` → `status: in-progress` (when starting first task)
@@ -91,11 +96,12 @@ When opening a plan file to continue work:
 
 ### Task Verification
 
-Each task has inline checks:
-1. Complete all steps in the task
-2. Run verification commands specified in checks
-3. All checks must pass before marking task complete
-4. If checks fail: debug, fix, re-run until they pass
+Each task follows RED → GREEN → CHECK:
+1. **RED**: Write the test. Verify it fails before proceeding.
+2. **GREEN**: Write minimal implementation. Verify the test passes.
+3. **CHECK**: Run all verification commands. All must pass before marking complete.
+4. If checks fail: debug, fix, re-run until they pass.
+5. **Commit** after GREEN passes.
 
 **Natural Stopping Points**: If context is getting large, recommend stopping and resuming in a fresh session pointing at the plan file.
 
