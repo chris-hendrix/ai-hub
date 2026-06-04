@@ -2,6 +2,8 @@
 
 Create markdown documents in the `.thoughts/` folder.
 
+Nothing is saved automatically. Run `/rpi write` when ready to persist the current output.
+
 **For implementation plans**: See [planning](./planning.md).
 
 ## Naming Convention
@@ -25,6 +27,19 @@ Documents can be organized into subdirectories. Common examples:
 | `research/` | Investigations, analysis |
 | `brainstorms/` | Design explorations |
 | `implementations/` | Post-implementation summaries |
+
+## `/rpi write` Auto-Detection
+
+When the user runs `/rpi write`, determine the correct subdirectory based on what was just produced:
+
+| Workflow completed | Subdirectory |
+|-------------------|-------------|
+| brainstorm | `.thoughts/brainstorms/` |
+| plan | `.thoughts/plans/` |
+| evaluate | `.thoughts/evaluations/` |
+| implement | `.thoughts/implementations/` |
+
+Use the existing output content to auto-detect the type if unclear. Fall back to asking the user.
 
 ## Document Requirements
 

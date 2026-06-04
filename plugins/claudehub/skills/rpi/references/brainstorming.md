@@ -2,6 +2,8 @@
 
 Turn rough ideas into fully formed designs through natural collaborative dialogue.
 
+**Brainstorming is optional.** For simple or well-understood changes, skip straight to plan. Brainstorming is recommended when the problem is complex, ambiguous, or has multiple viable approaches.
+
 ## Purpose
 
 Brainstorming is about **exploring alternatives and making an informed decision**, not creating detailed implementation plans. The key outputs are:
@@ -38,7 +40,7 @@ Research both when the task involves integrating new technologies into an existi
 - **Research before recommending** - When choosing dependencies, libraries, or technical approaches, research current best practices and recent recommendations. Don't rely solely on potentially outdated LLM knowledge.
 - **YAGNI ruthlessly** - Challenge every feature. Remove unnecessary complexity from all designs.
 - **Minimal code examples** - Brainstorming is about concepts and decisions, not implementation. Only show code when absolutely necessary to illustrate a specific point. Use brief snippets (5-10 lines max) or pseudo-code. Focus on architecture and trade-offs, not syntax.
-- **Explore alternatives** - Always consider 2-3 approaches before settling on one.
+- **Explore alternatives** - Always consider 2-3 approaches before settling on one (1-2 is fine for simple problems).
 - **Incremental validation** - Present design in sections, validate each before continuing.
 - **Be flexible** - Go back and clarify when something doesn't make sense.
 
@@ -114,7 +116,7 @@ What does success look like? How will we know this works?
 - [Description of existing architectural patterns]
 - [Current approaches to similar problems]
 
-**External Dependencies:**
+**External Dependencies:** *(if applicable — otherwise skip)*
 - Library/API name - [Link to docs](url) - What it's used for
 
 ## Approaches Considered
@@ -146,4 +148,11 @@ What does success look like? How will we know this works?
 **Selected Approach:** [Name of chosen approach]
 
 **Rationale:** [Why this approach was chosen over the others]
+
+## Risks & Unknowns
+
+[What we don't know yet. These feed into the plan phase as potential blockers or areas needing deeper investigation.]
+
+- [Risk/unknown 1]
+- [Risk/unknown 2]
 ```
