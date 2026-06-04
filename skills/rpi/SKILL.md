@@ -1,6 +1,6 @@
 ---
 name: rpi
-description: Consolidated brainstorm-plan-evaluate-implement workflow. Use when the user wants to brainstorm an idea, create an implementation plan, evaluate an artifact, implement from a plan, hand off work to another session, pick up a handoff, or write output to .thoughts/. Keywords: brainstorm, plan, evaluate, implement, handoff, pickup, write.
+description: "Consolidated brainstorm-plan-evaluate-implement workflow. Use when the user wants to brainstorm an idea, create an implementation plan, evaluate an artifact, implement from a plan, hand off work to another session, pick up a handoff, or write output to .thoughts/. Keywords: brainstorm, plan, evaluate, implement, handoff, pickup, write."
 ---
 
 # rpi — Brainstorm, Plan, Evaluate, Implement

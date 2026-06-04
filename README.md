@@ -9,8 +9,8 @@ Agent skills installable via [skills.sh](https://skills.sh).
 npx skills add chris-hendrix/skills
 
 # Individual skills
-npx skills add chris-hendrix/skills/rpi
-npx skills add chris-hendrix/skills/grill-me
+npx skills add chris-hendrix/skills --skill rpi
+npx skills add chris-hendrix/skills --skill grill-me
 ```
 
 ## Skills
