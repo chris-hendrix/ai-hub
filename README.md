@@ -9,7 +9,7 @@ Also available via [skills.sh](https://skills.sh).
 | Dir | Contents | Install |
 |-----|----------|---------|
 | `agents/` | opencode agent persona definitions (deep, fast, view, orchestrate) | `make opencode` |
-| `skills/` | Trigger-based skill extensions (rpi, grill-me) | `npx skills add chris-hendrix/ai-hub` |
+| `skills/` | Trigger-based skill extensions (rpi) | `npx skills add chris-hendrix/ai-hub` |
 
 ## Agents
 
@@ -33,8 +33,7 @@ Handles adding, updating, and cleaning up stale symlinks when agents are added o
 
 | Skill | Description |
 |-------|-------------|
-| **rpi** | Brainstorm, Plan, Evaluate, Implement workflow |
-| **grill-me** | Stress-test plans and designs through relentless interviewing |
+| **rpi** | Brainstorm, Plan, Evaluate, Grill, Implement workflow |
 
 ### Install
 
@@ -44,5 +43,4 @@ npx skills add chris-hendrix/ai-hub
 
 # Individual skills
 npx skills add chris-hendrix/ai-hub --skill rpi
-npx skills add chris-hendrix/ai-hub --skill grill-me
 ```
