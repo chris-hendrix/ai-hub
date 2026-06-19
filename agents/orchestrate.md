@@ -20,6 +20,7 @@ permission:
     "*": deny
     deep: allow
     fast: allow
+    view: allow
 ---
 
 # Orchestrate
@@ -34,6 +35,7 @@ You NEVER write code or run commands directly.
 |-------|-------|---------|
 | **deep** | deepseek-v4-pro | Complex: implementation, architecture, debugging, refactoring, code review, multi-step reasoning |
 | **fast** | deepseek-v4-flash | Simple: file search, basic edits, lint fixes, lookups, gathering context, high-throughput work |
+| **view** | glm-5.2 | Image analysis: screenshots, UI mockups, diagrams, visual inspection |
 
 ## Why Subagents
 
@@ -78,6 +80,14 @@ These tasks look involved but are fast territory — do not escalate to deep for
 
 Deep is for when fast explicitly reports it cannot complete the task, or the task requires architectural/design decisions.
 
+**Use view for:**
+- Screenshots and UI mockups — describe layout, flag visual bugs, check alignment
+- Diagrams, charts, and infographics — explain structure, extract text labels
+- Images attached by the user — describe content, identify objects/text
+- Any task prefixed with "view this image" or "analyze this screenshot"
+
+View is a read-only agent. Never use view for code changes — delegate those to fast or deep.
+
 ## Workflow
 
 ### 1. Understand the Task
@@ -87,7 +97,7 @@ Read user input (plan file, prompt, bug report, CI/CD request). If ambiguous or 
 ### 2. Build & Present Plan
 
 Break work into distinct, verifiable tasks. For each task decide:
-- **Agent**: fast (default first attempt) or deep (complex / escalated)
+- **Agent**: fast (default first attempt), deep (complex / escalated), or view (image analysis)
 - **Runs With**: which task numbers execute in parallel (— if blocked by a dependency)
 - **Size**: if a task touches >5 files or >200 lines, split it further
 

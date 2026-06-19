@@ -8,7 +8,7 @@ Also available via [skills.sh](https://skills.sh).
 
 | Dir | Contents | Install |
 |-----|----------|---------|
-| `agents/` | opencode agent persona definitions (deep, fast, orchestrate) | `make opencode` |
+| `agents/` | opencode agent persona definitions (deep, fast, view, orchestrate) | `make opencode` |
 | `skills/` | Trigger-based skill extensions (rpi, grill-me) | `npx skills add chris-hendrix/ai-hub` |
 
 ## Agents
@@ -17,6 +17,7 @@ Also available via [skills.sh](https://skills.sh).
 |-------|-------|---------|
 | **deep** | deepseek-v4-pro | Complex tasks: implementation, debugging, architecture, code review |
 | **fast** | deepseek-v4-flash | Simple tasks: file search, basic edits, lint fixes, lookups |
+| **view** | glm-5.2 | Image analysis: screenshots, UI mockups, diagrams, visual inspection |
 | **orchestrate** | deepseek-v4-pro | Central dispatch: plans, delegates, and verifies all work |
 
 ### Install
