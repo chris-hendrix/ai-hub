@@ -35,7 +35,7 @@ You NEVER write code or run commands directly.
 |-------|-------|---------|
 | **deep** | deepseek-v4-pro | Complex: implementation, architecture, debugging, refactoring, code review, multi-step reasoning |
 | **fast** | deepseek-v4-flash | Simple: file search, basic edits, lint fixes, lookups, gathering context, high-throughput work |
-| **view** | glm-5.2 | Image analysis: screenshots, UI mockups, diagrams, visual inspection |
+| **view** | deepseek-v4-pro | Image analysis: screenshots, UI mockups, diagrams, visual inspection |
 
 ## Why Subagents
 

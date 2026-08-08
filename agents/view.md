@@ -1,7 +1,7 @@
 ---
 description: General image analysis — describe images, review screenshots, analyze UI mockups, inspect visual bugs
 mode: subagent
-model: opencode-go/glm-5.2
+model: opencode-go/deepseek-v4-pro
 hidden: true
 temperature: 0.2
 permission:

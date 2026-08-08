@@ -36,4 +36,7 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Circular self-referential symlink recreated by skill loaders
+skills/rpi/rpi
+
 
