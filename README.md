@@ -8,8 +8,8 @@ Also available via [skills.sh](https://skills.sh).
 
 | Dir | Contents | Install |
 |-----|----------|---------|
-| `agents/` | opencode agent persona definitions (deep, fast, orchestrate) | `make opencode` |
-| `skills/` | Trigger-based skill extensions (rpi, grill-me) | `npx skills add chris-hendrix/ai-hub` |
+| `agents/` | opencode agent persona definitions (deep, fast, view, orchestrate) | `make opencode` |
+| `skills/` | Trigger-based skill extensions (rpi) | `npx skills add chris-hendrix/ai-hub` |
 
 ## Agents
 
@@ -17,6 +17,7 @@ Also available via [skills.sh](https://skills.sh).
 |-------|-------|---------|
 | **deep** | deepseek-v4-pro | Complex tasks: implementation, debugging, architecture, code review |
 | **fast** | deepseek-v4-flash | Simple tasks: file search, basic edits, lint fixes, lookups |
+| **view** | deepseek-v4-pro | Image analysis: screenshots, UI mockups, diagrams, visual inspection |
 | **orchestrate** | deepseek-v4-pro | Central dispatch: plans, delegates, and verifies all work |
 
 ### Install
@@ -32,8 +33,7 @@ Handles adding, updating, and cleaning up stale symlinks when agents are added o
 
 | Skill | Description |
 |-------|-------------|
-| **rpi** | Brainstorm, Plan, Evaluate, Implement workflow |
-| **grill-me** | Stress-test plans and designs through relentless interviewing |
+| **rpi** | Brainstorm, Plan, Evaluate, Grill, Implement workflow |
 
 ### Install
 
@@ -43,5 +43,4 @@ npx skills add chris-hendrix/ai-hub
 
 # Individual skills
 npx skills add chris-hendrix/ai-hub --skill rpi
-npx skills add chris-hendrix/ai-hub --skill grill-me
 ```

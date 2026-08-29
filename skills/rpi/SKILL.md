@@ -1,6 +1,6 @@
 ---
 name: rpi
-description: "Consolidated brainstorm-plan-evaluate-implement workflow. Use when the user wants to brainstorm an idea, create an implementation plan, evaluate an artifact, implement from a plan, hand off work to another session, pick up a handoff, or write output to .thoughts/. Keywords: brainstorm, plan, evaluate, implement, handoff, pickup, write."
+description: "Consolidated brainstorm-plan-evaluate-implement workflow. Use when the user wants to brainstorm an idea, create an implementation plan, evaluate an artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .thoughts/, or grill a plan/design through relentless interviewing. Keywords: brainstorm, plan, evaluate, implement, handoff, pickup, write, grill."
 ---
 
 # rpi — Brainstorm, Plan, Evaluate, Implement
@@ -18,6 +18,7 @@ brainstorm (optional) → plan → evaluate → implement
 - **brainstorm** — explore approaches, make a decision. Embeds research (codebase + web). Optional — skip for simple changes.
 - **plan** — TDD-structured implementation plan with RED/GREEN/CHECK tasks. Embeds research. Includes branch & commit strategy.
 - **evaluate** — assess artifacts across quality dimensions with concrete upgrade paths.
+- **grill** — interview the user relentlessly about a plan or design, walking every branch of the decision tree until reaching shared understanding. Interstitial — usable at any phase.
 - **implement** — execute a plan phase by phase through vertical RED/GREEN cycles.
 
 ## Keyword Reference
@@ -27,6 +28,7 @@ brainstorm (optional) → plan → evaluate → implement
 | `brainstorm` | `brainstorm <topic>` | Explore approaches for an idea (optional — skip for simple changes) |
 | `plan` | `plan <description or .thoughts doc path>` | Create a TDD-structured implementation plan |
 | `evaluate` | `evaluate <description>` | Evaluate an artifact across multiple quality dimensions with scoring and upgrade paths |
+| `grill` | `grill <topic>` | Interview the user relentlessly about a plan or design, walking the decision tree |
 | `handoff` | `handoff [description of next session]` | Summarize the current conversation into a handoff doc for another agent |
 | `pickup` | `pickup [path to handoff]` | Resume work from a handoff document |
 | `implement all` | `implement all [plan path]` | Implement all phases from a plan |
@@ -53,6 +55,7 @@ Parse the first word of the input as the keyword. For `implement`, parse `all` o
 | `brainstorm` | [brainstorming](references/brainstorming.md) |
 | `plan` | [planning](references/planning.md) |
 | `evaluate` | [evaluating](references/evaluating.md) |
+| `grill` | [grilling](references/grilling.md) |
 | `implement` | [implementing](references/implementing.md) |
 | `handoff` | [handoff](references/handoff.md) |
 | `pickup` | [handoff](references/handoff.md) |

@@ -109,6 +109,8 @@ Confidence levels:
 - 70% - "Technical approach is solid, still need clarity on [specific gaps]"
 - 90% - "Ready to write planning docs. Remaining 10% will be discovered during implementation."
 
+For complex plans where the lighter confidence gate isn't enough, use `rpi grill` (see [grilling](./grilling.md)). Grilling walks every branch of the decision tree exhaustively — use it when alignment is critical and misunderstanding would waste significant implementation effort.
+
 ### 3. Iterative Writing
 
 Don't write the full plan in one shot. Propose structure first, get feedback, then fill in details. Wait for user confirmation before diving into detailed checklist.
