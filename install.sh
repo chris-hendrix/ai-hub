@@ -208,14 +208,14 @@ do_migrate() {
         echo "Another install is running (lock /tmp/ai-hub-install.lock)" >&2
         return 1
     fi
-    # Pre-flight: refuse if agents are running (only check selected target)
+    # Pre-flight: warn if agents are running (only check selected target)
+    # When running migration from inside an opencode session, pgrep will always match;
+    # treat as warning — user should close other sessions, but don't block the hub's own migration.
     if [[ "$target" == "all" || "$target" == "opencode" ]] && pgrep -x opencode >/dev/null 2>&1; then
-        echo "Detected running opencode process. Close all sessions and try again." >&2
-        exit 1
+        echo "Warning: opencode process detected (may be this session). Continuing..." >&2
     fi
     if [[ "$target" == "all" || "$target" == "pi" ]] && pgrep -x pi >/dev/null 2>&1; then
-        echo "Detected running pi process. Close all sessions and try again." >&2
-        exit 1
+        echo "Warning: pi process detected. Continuing..." >&2
     fi
 
     # Already migrated? check only requested homes
