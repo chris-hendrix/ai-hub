@@ -1,7 +1,7 @@
 ---
 description: Subagent for complex tasks — implementation, debugging, architecture, code review
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: opencode-go/deepseek-v4-flash
 hidden: true
 temperature: 0.1
 permission:
