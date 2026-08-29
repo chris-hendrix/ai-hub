@@ -1,0 +1,13 @@
+# Secrets / machine-specific (never version)
+agent/auth.json
+agent/models-store.json
+agent/sessions/
+web-search-cache/
+
+# Skills installed via skills.sh for pi (reinstall with: npx skills add <skill> --agent pi)
+# Not tracked — recreated on demand
+agent/skills/*
+
+# Runtime (regenerated)
+agent/bin/
+agent/npm/
