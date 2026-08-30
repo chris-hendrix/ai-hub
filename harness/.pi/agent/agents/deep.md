@@ -1,7 +1,7 @@
 ---
 name: deep
 description: Subagent for complex tasks — implementation, debugging, architecture, code review
-tools: read, edit, write, grep, find, ls, bash
+tools: read, edit, write, grep, find, ls, bash, web_search, fetch_content, get_search_content
 inheritProjectContext: true
 ---
 
