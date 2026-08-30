@@ -257,4 +257,18 @@ export default function (pi: ExtensionAPI) {
 			return { block: true, reason: `plan mode: writes are only allowed under .thoughts/ (got ${String(p)})` };
 		}
 	});
+
+	// orchestrate read-only bash guard: only git status/diff/log/show/branch/rev-parse allowed
+	const ORCH_READONLY_BASH = /^(git\s+(status|diff|log|show|branch|rev-parse|ls-files)(\s|$))/;
+	pi.on("tool_call", async (event) => {
+		if (active !== "orchestrate") return;
+		if (event.toolName !== "bash") return;
+		const cmd = String((event.input as { command?: unknown } | undefined)?.command ?? "").trim();
+		if (!ORCH_READONLY_BASH.test(cmd)) {
+			return {
+				block: true,
+				reason: `orchestrate mode: bash is read-only — only git status/diff/log/show/branch/rev-parse/ls-files allowed (got: ${cmd.slice(0, 80)})`,
+			};
+		}
+	});
 }

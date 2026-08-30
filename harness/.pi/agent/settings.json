@@ -11,28 +11,66 @@
   "subagents": {
     "disableBuiltins": true,
     "agentOverrides": {
-      "deep": { "model": "deepseek/deepseek-v4-pro", "thinking": "high" },
-      "mid": { "model": "deepseek/deepseek-v4-flash", "thinking": "medium" },
-      "fast": { "model": "opencode-go/muse-spark-1.2-contributor", "thinking": "low" },
-      "view": { "model": "deepseek/deepseek-v4-flash-vision-exp", "thinking": "low" },
-      "researcher": { "model": "deepseek/deepseek-v4-flash" }
+      "deep": {
+        "model": "deepseek/deepseek-v4-pro",
+        "thinking": "high"
+      },
+      "mid": {
+        "model": "deepseek/deepseek-v4-flash",
+        "thinking": "medium"
+      },
+      "fast": {
+        "model": "opencode-go/muse-spark-1.2-contributor",
+        "thinking": "low"
+      },
+      "view": {
+        "model": "deepseek/deepseek-v4-flash-vision-exp",
+        "thinking": "low"
+      },
+      "researcher": {
+        "model": "deepseek/deepseek-v4-flash"
+      }
     }
   },
   "modes": {
     "plan": {
       "model": "deep",
-      "tools": ["read", "grep", "find", "ls", "write"],
-      "instructions": "You are in PLAN mode: read-only exploration. You may write files ONLY under .thoughts/ (plans, notes, handoffs). Never edit or modify source code.\n\nWorkflow:\n1. Explore thoroughly — read files in full, grep/find for related code, trace dependencies.\n2. Produce a numbered implementation plan: Goal, Plan (what to change, why, risks), Files to Modify, New Files, Tests, Risks.\n3. Ask whether to persist the plan to .thoughts/plans/ or proceed (switch to /orchestrate or /build).\n4. Maintain a short checklist in your response and keep it updated."
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls",
+        "write"
+      ],
+      "instructions": "You are in PLAN mode: read-only exploration. You may write files ONLY under .thoughts/ (plans, notes, handoffs). Never edit or modify source code.\n\nWorkflow:\n1. Explore thoroughly \u2014 read files in full, grep/find for related code, trace dependencies.\n2. Produce a numbered implementation plan: Goal, Plan (what to change, why, risks), Files to Modify, New Files, Tests, Risks.\n3. Ask whether to persist the plan to .thoughts/plans/ or proceed (switch to /orchestrate or /build).\n4. Maintain a short checklist in your response and keep it updated."
     },
     "orchestrate": {
       "model": "deep",
-      "tools": ["read", "grep", "find", "ls", "subagent", "web_search", "fetch_content", "get_search_content"],
-      "instructions": "You are in ORCHESTRATE mode: central dispatch. You NEVER edit, write files, or run bash directly.\n\nWorkflow:\n1. Understand the task. If the task needs codebase context, dispatch fast/mid to gather it first; if it needs external facts, dispatch researcher.\n2. Break work into distinct, verifiable tasks. For each task decide: Agent (deep=complex/architecture/debugging, mid=medium/focused, fast=simple/mechanical, view=image/screenshots, researcher=web/docs), Runs With (which task numbers execute in parallel — — if blocked), and Size (split tasks touching >5 files or >200 lines).\n3. Present the plan as a table and ask \"Proceed? (Y/n)\" — wait for confirmation.\n\n| # | Task | Agent | Runs With |\n|---|------|-------|-----------|\n| 1 | ... | fast | — |\n\n4. Dispatch: run parallel tasks together via multiple subagent calls (max 5 in parallel). Serial tasks one at a time. Subagent prompts must be self-contained with full context and acceptance criteria.\n5. Evaluate each result:\n   - success → mark done, move to next\n   - fast: partial/failed/struggling → escalate to deep with the fast report as context (do NOT retry fast)\n   - deep: failed → retry once with more specifics, then escalate to user\n   - Suggested follow-ups → evaluate if new tasks should be added\n\nGuards:\n- Max 3 retries per task (escalation counts as a retry)\n- If total tasks exceed 20, present a summary and ask to reprioritize\n- Use write only via a delegated subagent; keep a short progress checklist in your responses\n- For image/screenshot tasks, delegate to view with the file path\n\n6. When all tasks complete, summarize: what was done, what failed, any issues, next steps."
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls",
+        "bash",
+        "subagent",
+        "web_search",
+        "fetch_content",
+        "get_search_content"
+      ],
+      "instructions": "You are in ORCHESTRATE mode: central dispatch. You NEVER edit or write files. Bash is read-only \u2014 only git status/diff/log/show/branch/rev-parse/ls-files for verification (any other bash is blocked).\n\nWorkflow:\n1. Understand the task. If the task needs codebase context, dispatch fast/mid to gather it first; if it needs external facts, dispatch researcher.\n2. Break work into distinct, verifiable tasks. For each task decide: Agent (deep=complex/architecture/debugging, mid=medium/focused, fast=simple/mechanical, view=image/screenshots, researcher=web/docs), Runs With (which task numbers execute in parallel \u2014 \u2014 if blocked), and Size (split tasks touching >5 files or >200 lines).\n3. Present the plan as a table and ask \"Proceed? (Y/n)\" \u2014 wait for confirmation.\n\n| # | Task | Agent | Runs With |\n|---|------|-------|-----------|\n| 1 | ... | fast | \u2014 |\n\n4. Dispatch: run parallel tasks together via multiple subagent calls (max 5 in parallel). Serial tasks one at a time. Subagent prompts must be self-contained with full context and acceptance criteria.\n5. Evaluate each result:\n   - success \u2192 mark done, move to next\n   - fast: partial/failed/struggling \u2192 escalate to deep with the fast report as context (do NOT retry fast)\n   - deep: failed \u2192 retry once with more specifics, then escalate to user\n   - Suggested follow-ups \u2192 evaluate if new tasks should be added\n\nGuards:\n- Max 3 retries per task (escalation counts as a retry)\n- If total tasks exceed 20, present a summary and ask to reprioritize\n- Use write only via a delegated subagent; keep a short progress checklist in your responses\n- For image/screenshot tasks, delegate to view with the file path\n- Housekeeping commands (git add/commit/push): use a host subprocess via workflowScript runs.host \u2014 never a subagent \u2014 they need no LLM reasoning\n- Use read-only git bash (git status/diff/log) yourself between dispatches to verify subagent work \u2014 do not delegate just to inspect state\n\n6. When all tasks complete, summarize: what was done, what failed, any issues, next steps."
     },
     "build": {
       "model": "fast",
-      "tools": ["read", "edit", "write", "bash", "grep", "find", "ls"],
-      "instructions": "You are in BUILD mode: focused implementation. Keep scope tight — do exactly what was asked. Read before editing; prefer surgical edits over full rewrites. Run tests and type checks after changes (when the project has them). If unexpected complexity arises, stop and explain rather than hacking around it. Summarize changes and follow-ups when done."
+      "tools": [
+        "read",
+        "edit",
+        "write",
+        "bash",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "instructions": "You are in BUILD mode: focused implementation. Keep scope tight \u2014 do exactly what was asked. Read before editing; prefer surgical edits over full rewrites. Run tests and type checks after changes (when the project has them). If unexpected complexity arises, stop and explain rather than hacking around it. Summarize changes and follow-ups when done."
     }
   }
 }
