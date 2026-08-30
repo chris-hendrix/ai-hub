@@ -11,3 +11,4 @@ agent/skills/*
 # Runtime (regenerated)
 agent/bin/
 agent/npm/
+agent/missions/
