@@ -1,6 +1,6 @@
 ---
 name: fast
-description: Subagent for simple tasks — file search, basic edits, lookups, high-throughput work
+description: Subagent for simple tasks — file search, basic edits, lookups, high-throughput work; vision-capable (screenshots, UI mockups, diagrams)
 tools: read, edit, write, grep, find, ls, bash
 inheritProjectContext: true
 ---

@@ -2,9 +2,10 @@
  * Modes extension — named main-session personas (plan / orchestrate / build).
  *
  * Mode definitions live in settings.json under "modes". Each mode references a
- * model tier by name ("deep" | "mid" | "fast"); tiers resolve through
- * subagents.agentOverrides.<tier>.model — the same table pi-subagents uses for
- * the deep/mid/fast subagents, so a tier's model is defined in one place.
+ * model tier by name ("deep" | "mid" | "fast" | "researcher"); tiers resolve
+ * through subagents.agentOverrides.<tier>.model — the same table pi-subagents
+ * uses for the deep/mid/fast/researcher subagents, so a tier's model is
+ * defined in one place.
  *
  *   /plan  /orchestrate  /build   — switch directly
  *   /mode                          — show current mode + list
@@ -13,6 +14,9 @@
  *   pi --preset <name>             — start in a mode
  *
  * plan mode gets a write guard: write/edit are blocked outside .thoughts/.
+ *
+ * Settings-level default: add "defaultMode": "plan" at the top level of
+ * settings.json to have pi start in that mode. --preset still wins.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -22,11 +26,14 @@ import { Key } from "@earendil-works/pi-tui";
 
 interface Mode {
 	model?: string;
+	thinkingLevel?: string;
 	tools?: string[];
 	instructions?: string;
 }
 
 interface SettingsShape {
+	defaultProvider?: string;
+	defaultMode?: string;
 	modes?: Record<string, Mode>;
 	subagents?: { agentOverrides?: Record<string, { model?: string }> };
 }
@@ -41,15 +48,44 @@ function readJson(p: string): Record<string, unknown> {
 	}
 }
 
+function deepMerge<T extends Record<string, unknown>>(base: T, patch: T): T {
+	const out: Record<string, unknown> = { ...base };
+	for (const [k, v] of Object.entries(patch)) {
+		if (
+			v &&
+			typeof v === "object" &&
+			!Array.isArray(v) &&
+			base[k] &&
+			typeof base[k] === "object" &&
+			!Array.isArray(base[k])
+		) {
+			out[k] = deepMerge(
+				base[k] as Record<string, unknown>,
+				v as Record<string, unknown>,
+			);
+		} else {
+			out[k] = v as unknown;
+		}
+	}
+	return out as T;
+}
+
 function loadSettings(cwd: string): SettingsShape {
-	const global = readJson(join(getAgentDir(), "settings.json"));
-	const project = readJson(join(cwd, CONFIG_DIR_NAME, "settings.json"));
-	return { ...global, ...project } as SettingsShape;
+	const global = readJson(join(getAgentDir(), "settings.json")) as SettingsShape;
+	const projectRaw = readJson(join(cwd, CONFIG_DIR_NAME, "settings.json")) as SettingsShape;
+	const project = Object.keys(projectRaw).length > 0 ? projectRaw : undefined;
+	if (!project) return global;
+	// Deep merge so project subagents.agentOverrides extends global instead of clobbering it.
+	return deepMerge(global as unknown as Record<string, unknown>, project as unknown as Record<string, unknown>) as SettingsShape;
 }
 
 export default function (pi: ExtensionAPI) {
+	// Insertion order of modes as declared in global settings — the logical cycle order.
+	let modeOrder: string[] = [];
 	let modes: Record<string, Mode> = {};
 	let overrides: Record<string, { model?: string }> = {};
+	let defaultProvider: string | undefined;
+	let defaultMode: string | undefined;
 	let active: string | undefined;
 	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[] } | undefined;
 
@@ -57,14 +93,19 @@ export default function (pi: ExtensionAPI) {
 		const s = loadSettings(cwd);
 		modes = s.modes ?? {};
 		overrides = s.subagents?.agentOverrides ?? {};
+		defaultProvider = s.defaultProvider;
+		defaultMode = s.defaultMode;
+		// Track insertion order from global settings for the cycle shortcut.
+		const globalRaw = readJson(join(getAgentDir(), "settings.json")) as SettingsShape;
+		modeOrder = globalRaw.modes ? Object.keys(globalRaw.modes) : Object.keys(modes);
 	};
 
-	/** Resolve "deep" | "mid" | "fast" (or a literal provider/id) to {provider, id}. */
+	/** Resolve "deep" | "mid" | "fast" | "researcher" (or a literal provider/id) to {provider, id}. */
 	function resolveModelSpec(spec: string): { provider: string; id: string } {
 		if (!spec.includes("/") && overrides[spec]?.model) spec = overrides[spec].model;
 		const slash = spec.indexOf("/");
 		if (slash > 0) return { provider: spec.slice(0, slash), id: spec.slice(slash + 1) };
-		return { provider: "deepseek", id: spec };
+		return { provider: defaultProvider ?? "deepseek", id: spec };
 	}
 
 	async function applyMode(name: string, ctx: ExtensionContext): Promise<boolean> {
@@ -107,18 +148,22 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.notify("Mode off — defaults restored", "info");
 	}
 
-	// Register one command per mode from global config at load time.
-	refresh(process.cwd());
-	for (const name of Object.keys(modes)) {
-		pi.registerCommand(name, {
-			description: `Switch to ${name} mode`,
-			handler: async (_args, ctx) => {
-				if (!(await applyMode(name, ctx))) {
-					ctx.ui.notify(`Unknown mode "${name}"`, "error");
-				}
-			},
-		});
+	function registerModeCommands() {
+		for (const name of Object.keys(modes)) {
+			pi.registerCommand(name, {
+				description: `Switch to ${name} mode`,
+				handler: async (_args, ctx) => {
+					if (!(await applyMode(name, ctx))) {
+						ctx.ui.notify(`Unknown mode "${name}"`, "error");
+					}
+				},
+			});
+		}
 	}
+
+	// Register per-mode commands from global config at load time.
+	refresh(process.cwd());
+	registerModeCommands();
 
 	pi.registerFlag("preset", { type: "string", description: "Start in a named mode" });
 
@@ -141,19 +186,37 @@ export default function (pi: ExtensionAPI) {
 	pi.registerShortcut(Key.ctrlShift("u"), {
 		description: "Cycle modes",
 		handler: async (ctx) => {
-			const names = Object.keys(modes).sort();
+			const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
 			if (names.length === 0) return ctx.ui.notify("No modes defined", "warning");
 			const idx = active ? names.indexOf(active) : -1;
 			await applyMode(names[(idx + 1) % names.length], ctx);
 		},
 	});
 
-	// Refresh config (picks up project-level overrides) and honor --preset.
+	// Refresh config (picks up project-level overrides), register any project-defined
+	// mode commands, and honor --preset or the persisted defaultMode.
 	pi.on("session_start", async (_event, ctx) => {
+		const before = new Set(Object.keys(modes));
 		refresh(ctx.cwd);
+		for (const name of Object.keys(modes)) {
+			if (!before.has(name)) {
+				pi.registerCommand(name, {
+					description: `Switch to ${name} mode`,
+					handler: async (_args, innerCtx) => {
+						if (!(await applyMode(name, innerCtx))) {
+							innerCtx.ui.notify(`Unknown mode "${name}"`, "error");
+						}
+					},
+				});
+			}
+		}
 		const flag = pi.getFlag("preset");
 		if (typeof flag === "string" && flag && modes[flag]) {
 			await applyMode(flag, ctx);
+			return;
+		}
+		if (defaultMode && modes[defaultMode] && !active) {
+			await applyMode(defaultMode, ctx);
 		}
 	});
 
