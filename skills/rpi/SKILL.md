@@ -67,9 +67,7 @@ Document conventions across all workflows follow [writing-documentation](referen
 
 ## Writing Output
 
-Most workflows save nothing automatically. Run `rpi write` when ready to persist. The `implement` workflow prompts you at completion — for all others, use `write` explicitly. The `handoff` workflow is the exception: it writes immediately.
-
-See [writing-documentation](references/writing-documentation.md) for naming and auto-detection conventions.
+Most workflows save nothing automatically. When the user says `write`, persist via `skills/rpi/scripts/rpi write --type <type> --topic "..."` — body on stdin (see [writing-documentation](references/writing-documentation.md) for types and subdirs). The `implement` workflow prompts at completion; `handoff` writes immediately.
 
 ## Unknown or Missing Keyword
 
