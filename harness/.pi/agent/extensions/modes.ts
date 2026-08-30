@@ -10,9 +10,11 @@
  *   /plan  /orchestrate  /build   — switch directly
  *   /mode                          — show current mode + list
  *   /mode <name> | /mode off       — switch / restore defaults
- *   Ctrl+Shift+U                   — cycle modes
+ *   Shift+Tab                      — cycle modes (vanilla → plan → orchestrate → build → vanilla)
  *   pi --preset <name>             — start in a mode
  *
+ * Shift+Tab cycles through vanilla (no mode) and all defined modes.
+ * Vanilla = plain pi, no extra instructions, original tools/model restored.
  * plan mode gets a write guard: write/edit are blocked outside .thoughts/.
  *
  * Settings-level default: add "defaultMode": "plan" at the top level of
@@ -23,6 +25,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Key } from "@earendil-works/pi-tui";
+
+/** Vanilla entry shown in /mode and the Shift+Tab cycle — no mode active. */
+const VANILLA_LABEL = "(default)";
 
 interface Mode {
 	model?: string;
@@ -172,24 +177,37 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const name = args?.trim();
 			if (!name) {
-				const list = Object.keys(modes).map((m) => (m === active ? `${m} (active)` : m)).join(", ") || "(none)";
+				const all = [VANILLA_LABEL, ...Object.keys(modes)];
+				const list = all.map((m) => (m === (active ?? VANILLA_LABEL) ? `${m} (active)` : m)).join(", ");
 				ctx.ui.notify(`Modes: ${list}`, "info");
 				return;
 			}
-			if (name === "off") return restore(ctx);
+			if (name === "off" || name === VANILLA_LABEL || name === "default" || name === "vanilla") return restore(ctx);
 			if (!(await applyMode(name, ctx))) {
 				ctx.ui.notify(`Unknown mode "${name}". Available: ${Object.keys(modes).join(", ") || "(none)"}`, "error");
 			}
 		},
 	});
 
-	pi.registerShortcut(Key.ctrlShift("u"), {
+	// Shift+Tab cycles: (default) → plan → orchestrate → build → (default)
+	const getCycleNames = (): string[] => {
+		const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
+		return [VANILLA_LABEL, ...names];
+	};
+
+	pi.registerShortcut(Key.shift("tab"), {
 		description: "Cycle modes",
 		handler: async (ctx) => {
-			const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
-			if (names.length === 0) return ctx.ui.notify("No modes defined", "warning");
-			const idx = active ? names.indexOf(active) : -1;
-			await applyMode(names[(idx + 1) % names.length], ctx);
+			const names = getCycleNames();
+			if (names.length <= 1) return ctx.ui.notify("No modes defined", "warning");
+			const current = active ?? VANILLA_LABEL;
+			const idx = names.indexOf(current);
+			const next = names[(idx + 1) % names.length];
+			if (next === VANILLA_LABEL) {
+				await restore(ctx);
+			} else {
+				await applyMode(next, ctx);
+			}
 		},
 	});
 
