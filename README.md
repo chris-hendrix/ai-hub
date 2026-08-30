@@ -8,9 +8,9 @@ Also available via [skills.sh](https://skills.sh).
 
 | Dir | Contents | Install |
 |-----|----------|---------|
-| `coding-agents/.opencode/` | opencode home: `opencode.json`, `agents/` (deep, fast, orchestrate), `skills/` | `~/.opencode` + `~/.config/opencode` symlinks |
-| `coding-agents/.pi/` | pi home: `agent/settings.json`, `agent/skills/` | `~/.pi` symlink |
-| `skills/` | Shared custom skills — source of truth for **both** agents (currently `rpi`) | intra-repo symlinks into `coding-agents/.opencode/skills` + `coding-agents/.pi/agent/skills` |
+| `harness/.opencode/` | opencode home: `opencode.json`, `agents/` (deep, fast, orchestrate), `skills/` | `~/.opencode` + `~/.config/opencode` symlinks |
+| `harness/.pi/` | pi home: `agent/settings.json`, `agent/skills/` | `~/.pi` symlink |
+| `skills/` | Shared custom skills — source of truth for **both** agents (currently `rpi`) | intra-repo symlinks into `harness/.opencode/skills` + `harness/.pi/agent/skills` |
 | `.env.example` | Required env vars (`CONTEXT7_API_KEY`, etc.) | copy to `~/.zshrc` or export |
 
 ## Agents
@@ -39,7 +39,7 @@ npx skills add chris-hendrix/ai-hub
 npx skills add chris-hendrix/ai-hub --skill rpi
 ```
 
-Hub skills are also available as `skills/rpi` in this repo and symlinked into both agent homes (`coding-agents/.opencode/skills/rpi`, `coding-agents/.pi/agent/skills/rpi`). skills.sh keeps managing `~/.agents/skills` and `~/.claude/skills` untouched.
+Hub skills are also available as `skills/rpi` in this repo and symlinked into both agent homes (`harness/.opencode/skills/rpi`, `harness/.pi/agent/skills/rpi`). skills.sh keeps managing `~/.agents/skills` and `~/.claude/skills` untouched.
 
 ## Install
 
@@ -74,7 +74,7 @@ Legacy alias: `make opencode` still works (→ `make install`).
 
 ## Hazard: `git clean -fdx`
 
-Because whole home dirs are symlinked into the repo, `git clean -fdx` inside `ai-hub` would **delete gitignored secrets/sessions/binary** living under `coding-agents/` (e.g. `auth.json`, `~/.opencode/bin/opencode`).
+Because whole home dirs are symlinked into the repo, `git clean -fdx` inside `ai-hub` would **delete gitignored secrets/sessions/binary** living under `harness/` (e.g. `auth.json`, `~/.opencode/bin/opencode`).
 
 - Do: `git clean -fd` (without `-x`) to keep ignored files, or `git clean -fdx --dry-run` to preview.
 - Backups from `migrate` live at `~/.opencode.bak-*` etc. — keep them until verified.

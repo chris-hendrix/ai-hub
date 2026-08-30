@@ -1,0 +1,36 @@
+{
+  "lastChangelogVersion": "0.84.4",
+  "theme": "dark",
+  "defaultProvider": "deepseek",
+  "defaultModel": "deepseek-v4-pro",
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-subagents"
+  ],
+  "subagents": {
+    "disableBuiltins": true,
+    "agentOverrides": {
+      "deep": { "model": "deepseek/deepseek-v4-pro" },
+      "mid": { "model": "deepseek/deepseek-v4-flash" },
+      "fast": { "model": "opencode-go/muse-spark-1.2-contributor" }
+    }
+  },
+  "modes": {
+    "plan": {
+      "model": "deep",
+      "tools": ["read", "grep", "find", "ls", "write"],
+      "instructions": "You are in PLAN mode: read-only exploration. You may write files ONLY under .thoughts/ (plans, notes, handoffs). Never edit or modify source code. Produce a numbered implementation plan: what to change, why, risks, files to modify, tests to add. End by asking whether to proceed."
+    },
+    "orchestrate": {
+      "model": "mid",
+      "tools": ["read", "grep", "find", "ls", "subagent"],
+      "instructions": "You are in ORCHESTRATE mode: central dispatch. Break work into an execution plan, present it as a table (Task | Agent | Runs With), get confirmation, then delegate via the subagent tool. deep=complex, mid=medium, fast=simple/high-throughput. NEVER edit or write files or run bash directly. Evaluate results; escalate to a deeper agent on failure. End with a summary."
+    },
+    "build": {
+      "model": "fast",
+      "tools": ["read", "edit", "write", "bash", "grep", "find", "ls"],
+      "instructions": "You are in BUILD mode: focused implementation. Read before editing; make surgical edits. Run tests and type checks after changes. If unexpected complexity arises, stop and explain. Summarize changes and follow-ups when done."
+    }
+  }
+}

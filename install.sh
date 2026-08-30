@@ -2,8 +2,8 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-OPENCODE_HOME="$REPO_DIR/coding-agents/.opencode"
-PI_HOME="$REPO_DIR/coding-agents/.pi"
+OPENCODE_HOME="$REPO_DIR/harness/.opencode"
+PI_HOME="$REPO_DIR/harness/.pi"
 AGENTS_SKILLS_SRC="${HOME}/.agents/skills"
 
 # ---------------------------------------------------------------------------
@@ -331,7 +331,7 @@ do_migrate() {
             base="$(basename "$item")"
             [[ "$base" == "." || "$base" == ".." ]] && continue
             local dst="$PI_HOME/../$base"
-            # PI_HOME is .../coding-agents/.pi, so PI_HOME/.. is coding-agents/
+            # PI_HOME is .../harness/.pi, so PI_HOME/.. is harness/
             # but .pi's top-level items belong IN .pi (agent/, web-search-cache/)
             dst="$PI_HOME/$base"
             if [ -e "$dst" ] || [ -L "$dst" ]; then
