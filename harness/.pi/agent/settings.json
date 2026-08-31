@@ -20,7 +20,7 @@
       },
       "mid": {
         "model": "deepseek/deepseek-v4-flash",
-        "thinking": "medium"
+        "thinking": "high"
       },
       "fast": {
         "model": "opencode-go/muse-spark-1.2-contributor",
