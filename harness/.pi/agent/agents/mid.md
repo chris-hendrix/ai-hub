@@ -1,6 +1,6 @@
 ---
 name: mid
-description: Subagent for medium tasks — focused edits, lookups, moderate complexity
+description: Medium complexity — multi-file changes, focused debugging, moderate reasoning.
 tools: read, edit, write, grep, find, ls, bash, web_search, fetch_content, get_search_content
 inheritProjectContext: true
 ---

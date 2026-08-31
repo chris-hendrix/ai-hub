@@ -1,6 +1,6 @@
 ---
 name: fast
-description: Subagent for simple tasks — file search, basic edits, lookups, high-throughput work; vision-capable (screenshots, UI mockups, diagrams)
+description: Default implementation agent — code changes from an existing plan, mechanical edits, file search, lookups. Vision-capable.
 tools: read, edit, write, grep, find, ls, bash, web_search, fetch_content, get_search_content
 inheritProjectContext: true
 ---
