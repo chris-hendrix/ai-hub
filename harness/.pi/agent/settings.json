@@ -45,7 +45,7 @@
       "instructions": "You are in PLAN mode: read-only exploration. You may write files ONLY under .thoughts/ (plans, notes, handoffs). Never edit or modify source code.\n\nWorkflow:\n1. Explore thoroughly \u2014 read files in full, grep/find for related code, trace dependencies.\n2. Produce a numbered implementation plan: Goal, Plan (what to change, why, risks), Files to Modify, New Files, Tests, Risks.\n3. Ask whether to persist the plan to .thoughts/plans/ or proceed (switch to /orchestrate or /build).\n4. Maintain a short checklist in your response and keep it updated."
     },
     "orchestrate": {
-      "model": "deep",
+      "model": "mid",
       "tools": [
         "read",
         "grep",

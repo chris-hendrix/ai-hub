@@ -40,7 +40,7 @@ interface SettingsShape {
 	defaultProvider?: string;
 	defaultMode?: string;
 	modes?: Record<string, Mode>;
-	subagents?: { agentOverrides?: Record<string, { model?: string }> };
+	subagents?: { agentOverrides?: Record<string, { model?: string; thinking?: string }> };
 }
 
 function readJson(p: string): Record<string, unknown> {
@@ -88,11 +88,11 @@ export default function (pi: ExtensionAPI) {
 	// Insertion order of modes as declared in global settings — the logical cycle order.
 	let modeOrder: string[] = [];
 	let modes: Record<string, Mode> = {};
-	let overrides: Record<string, { model?: string }> = {};
+	let overrides: Record<string, { model?: string; thinking?: string }> = {};
 	let defaultProvider: string | undefined;
 	let defaultMode: string | undefined;
 	let active: string | undefined;
-	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[] } | undefined;
+	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[]; thinking: string } | undefined;
 
 	const refresh = (cwd: string) => {
 		const s = loadSettings(cwd);
@@ -118,7 +118,7 @@ export default function (pi: ExtensionAPI) {
 		if (!mode) return false;
 
 		if (active === undefined) {
-			original = { model: ctx.model, tools: pi.getActiveTools() };
+			original = { model: ctx.model, tools: pi.getActiveTools(), thinking: pi.getThinkingLevel() };
 		}
 
 		if (mode.model) {
@@ -130,6 +130,11 @@ export default function (pi: ExtensionAPI) {
 			} else {
 				ctx.ui.notify(`Mode "${name}": model ${provider}/${id} not found`, "warning");
 			}
+		}
+
+		const thinking = mode.thinkingLevel ?? (mode.model ? overrides[mode.model]?.thinking : undefined);
+		if (thinking) {
+			pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
 		}
 
 		if (mode.tools && mode.tools.length > 0) {
@@ -148,6 +153,7 @@ export default function (pi: ExtensionAPI) {
 		if (original) {
 			if (original.model) await pi.setModel(original.model);
 			pi.setActiveTools(original.tools);
+			pi.setThinkingLevel(original.thinking as Parameters<typeof pi.setThinkingLevel>[0]);
 		}
 		ctx.ui.setStatus("mode", undefined);
 		ctx.ui.notify("Mode off — defaults restored", "info");
