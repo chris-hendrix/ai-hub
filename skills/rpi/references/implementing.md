@@ -1,56 +1,13 @@
-# Implementing
+# Implement
 
-Execute from plans with mandatory review checkpoints. The plan file is the source of truth — checkboxes show progress, any session can resume where the last left off.
+Execute a plan's checklist (`rpi implement all <plan>` / `implement phase N <plan>`).
 
-## Philosophy
+Loop, per task:
 
-- **Critical review before starting**: Read plans skeptically; raise concerns before executing.
-- **TDD**: Each task RED (failing test) → GREEN (minimal pass). See [planning](./planning.md).
-- **Commit after GREEN**: Clean audit trail.
-- **Refactor after GREEN**: Pause, dedupe, deepen. Run tests after each step. Never refactor while RED.
-- **Phase-by-phase**: Complete one phase fully before the next. Get sign-off at phase boundaries.
-- **Fail fast**: Stop on blockers; don't proceed speculatively.
+1. **Pop** — `rpi next <plan>` to get the next task with its RED/GREEN/CHECK block.
+2. **Implement** — hand a cheap subagent the task block plus the plan document (it needs the Architecture, not just the task). It executes in the shape the task defines (RED present → test-first) and must run CHECK and report the result.
+3. **Verify & mark** — confirm CHECK passed yourself, then `rpi done <plan> <task-id>`. The orchestrator flips the checkbox, never the subagent — state advances only on verified results, not self-reports.
 
-## Phase Processing
+On failure: retry once with the failure output as context; if it still fails, stop and surface to the user — never mark complete or work around the plan.
 
-1. **Load phase** — review tasks.
-2. **Task by task** — RED → GREEN → CHECK → commit. Update the plan file as you go.
-3. **Refactor after phase** — look for extraction opportunities.
-4. **Verify phase** — run checks, get sign-off.
-5. **Next phase**.
-
-Halt on missing dependencies, failing assumptions, or unclear instructions.
-
-## Implementing from a Plan
-
-**Continuously update the plan file.** Checkboxes and status enable cross-session resume.
-
-### What to update
-
-- **Checkboxes** — replace `- [ ]` with `- [x]` as you complete RED/GREEN/CHECK and whole tasks.
-- **Status** — `scripts/rpi status <plan> in-progress` when starting, `scripts/rpi status <plan> completed` when done (don't hand-edit frontmatter).
-- **Resume point** — `scripts/rpi next <plan>` prints the first unchecked task.
-- **Tracked Changes** — record significant deviations (architecture shifts, added/removed phases). Don't log minor refactors.
-
-Example:
-
-```markdown
-## Tracked Changes
-
-**2026-01-15** — Switched auth from JWT to sessions (token-refresh complexity). Updated Phase 2.
-```
-
-### Task Verification
-
-Each task: RED → GREEN → CHECK → commit.
-
-1. **RED**: Write the test, verify it fails.
-2. **GREEN**: Minimal implementation, verify it passes.
-3. **CHECK**: All verification commands pass. Debug until they do.
-4. **Commit** after GREEN.
-
-If context grows large, suggest stopping and resuming via `rpi pickup` in a fresh session.
-
-### Completion
-
-When all tasks complete: run full verification, present remaining manual steps, suggest a [handoff](./handoff.md) if follow-up work remains, and ask: **"Save an implementation summary to .thoughts/implementations/?"** If yes, write via `scripts/rpi write --type implement --topic "..."` with files changed, decisions, deviations, verification results, and a link to the plan.
+Stay in the orchestrator role — don't implement tasks yourself. Phase boundaries are the natural points to check in with the user.
