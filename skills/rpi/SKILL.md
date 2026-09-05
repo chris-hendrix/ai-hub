@@ -14,8 +14,6 @@ Parse the first word of the input as the keyword (`implement all [plan]` / `impl
 | `review <plan \| artifact>` | [review](references/review.md) — findings list + verdict |
 | `grill <topic>` | [grill](references/grill.md) — relentless interview until fully aligned |
 | `implement [all \| phase N] [plan path]` | [implement](references/implement.md) — orchestrate subagents through a plan's checklist |
-| `handoff [focus]` | [handoff](references/handoff.md) — summarize session for another agent; writes immediately |
+| `handoff [focus]` | [handoff](references/handoff.md) — summarize session for another agent |
 | `pickup [path]` | [pickup](references/pickup.md) — resume from a handoff |
-| `write` | [write](references/write.md) — save recent output; scripted |
-
-`research` never writes; `handoff` and explicit `write` do.
+| `write` | [write](references/write.md) — save output to `.rpi/` |

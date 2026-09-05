@@ -1,6 +1,6 @@
 # Handoff
 
-Summarize the current conversation into a handoff for another agent. Always writes immediately via the script.
+Summarize the current conversation into a handoff for another agent. Writes immediately via the script when handoff is invoked.
 
 The next agent has **zero conversation history** — the handoff is all it gets.
 
