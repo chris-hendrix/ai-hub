@@ -7,6 +7,7 @@ set -euo pipefail
 #   rpi status <plan-file> <planned|in-progress|completed>
 #   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
 #   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
+#   rpi pickup [path] [--list]        # resolve a handoff: latest, or given path
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # repo root is two levels up from skills/rpi/scripts
@@ -33,8 +34,8 @@ cmd_write() {
     esac
   done
 
-  if [[ -z "$type" || -z "$topic" ]]; then
-    echo "rpi write: --type and --topic are required" >&2
+  if [[ -z "$type" ]]; then
+    echo "rpi write: --type is required" >&2
     usage_write >&2
     exit 1
   fi
@@ -53,17 +54,17 @@ cmd_write() {
   date="$(date +%Y-%m-%d)"
   local slug
   slug="$(kebab_case "$topic")"
-  if [[ -z "$slug" ]]; then
-    echo "rpi write: topic produced empty slug" >&2; exit 1
-  fi
 
   local filename
   if [[ -n "$ticket" ]]; then
     local ticket_slug
     ticket_slug="$(kebab_case "$ticket")"
     filename="${date}-${ticket_slug}-${slug}.md"
-  else
+  elif [[ -n "$slug" ]]; then
     filename="${date}-${slug}.md"
+  else
+    # no topic — timestamped filename
+    filename="${date}-$(date +%H%M).md"
   fi
 
   local body
@@ -76,7 +77,9 @@ cmd_write() {
   {
     echo "---"
     echo "date: ${date}"
-    echo "topic: ${topic}"
+    if [[ -n "$topic" ]]; then
+      echo "topic: ${topic}"
+    fi
     if [[ -n "$ticket" ]]; then
       echo "ticket: ${ticket}"
     fi
@@ -211,6 +214,30 @@ resolve_plan() {
   echo "$file"
 }
 
+cmd_pickup() {
+  local file="" list=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --list) list=1; shift ;;
+      *) file="$1"; shift ;;
+    esac
+  done
+  if [[ -n "$file" ]]; then
+    resolve_plan "$file"
+    return
+  fi
+  local dir="${REPO_ROOT}/.thoughts/handoffs"
+  if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+    echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
+  fi
+  # newest first (filenames start with YYYY-MM-DD)
+  if [[ "$list" -eq 1 ]]; then
+    ls -1 "$dir" | sort -r | sed "s|^|$dir/|"
+  else
+    ls -1 "$dir" | sort -r | head -1 | sed "s|^|$dir/|"
+  fi
+}
+
 usage() {
   cat <<'USAGE'
 rpi — deterministic helpers for the rpi skill
@@ -226,6 +253,7 @@ Examples:
   rpi status .thoughts/plans/2026-08-30-auth-refactor.md in-progress
   rpi next .thoughts/plans/2026-08-30-auth-refactor.md
   rpi done .thoughts/plans/2026-08-30-auth-refactor.md 2
+  rpi pickup .thoughts/handoffs/2026-05-24-auth-refactor.md
 USAGE
 }
 
@@ -234,7 +262,7 @@ usage_write() {
 rpi write — create a .thoughts document with deterministic frontmatter
 
   --type     one of: plan, review, implement, handoff  (required)
-  --topic    human-readable topic, used for frontmatter and filename  (required)
+  --topic    human-readable topic, used for frontmatter and filename (optional — timestamped filename if omitted)
   --ticket   optional ticket/issue id, included in filename and frontmatter
   --status   override frontmatter status (plan→planned, handoff→handed-off by default)
   --artifact artifact path for evaluations (frontmatter artifact field)
@@ -252,6 +280,7 @@ main() {
     status) cmd_status "$@" ;;
     next)   cmd_next "$@" ;;
     done)   cmd_done "$@" ;;
+    pickup) cmd_pickup "$@" ;;
     -h|--help|help) usage; exit 0 ;;
     *) echo "rpi: unknown subcommand: $cmd" >&2; usage >&2; exit 1 ;;
   esac

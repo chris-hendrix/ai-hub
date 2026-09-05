@@ -56,7 +56,7 @@ Parse the first word of the input as the keyword. For `implement`, parse `all` o
 | `grill` | [grilling](references/grilling.md) |
 | `implement` | [implementing](references/implementing.md) |
 | `handoff` | [handoff](references/handoff.md) |
-| `pickup` | [handoff](references/handoff.md) |
+| `pickup` | [pickup](references/pickup.md) |
 | `write` | [writing-documentation](references/writing-documentation.md) |
 
 Document conventions follow [writing-documentation](references/writing-documentation.md).
