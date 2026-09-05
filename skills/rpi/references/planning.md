@@ -1,121 +1,72 @@
 # Writing Implementation Plans
 
-Create detailed, actionable plans with enough specificity for an LLM to implement. Plans are the persistent source of truth for multi-session implementation — the entire implementation is too large for a single context window.
+Plans are persistent, self-sufficient documents — all context needed to implement without conversation history.
 
 Save via `skills/rpi/scripts/rpi write --type plan --topic "..."` — frontmatter and filename are handled by the script (see [writing-documentation](./writing-documentation.md)).
 
-## Philosophy
+## Process
 
-- **Self-contained context**: Architecture must include all details to implement without prior conversation history.
-- **Task-level verification**: Each task is independently verifiable (RED/GREEN/CHECK) for tight feedback loops.
-- **TDD core loop**: Each task is a vertical slice — RED (failing test) → GREEN (minimal pass) → CHECK (verify). One behavior per task.
-- **Refactor after GREEN**: After each task goes green, pause. Extract duplication, deepen modules. Run tests after each step. Never refactor while RED.
-- **Enough detail, not full code**: Include structure and patterns, not complete implementation.
-- **Living document**: Checkboxes track progress; any session can resume from the plan.
+1. **Context gathering** — read the codebase fully first (and the web where current best practice matters). Include `file:line` references.
+2. **90% confidence gate** — don't write until you could explain the plan back and the user would say "yes, exactly." Report confidence % after each round of questions; escalate to `grill` (see [grilling](./grilling.md)) for complex plans.
+3. **Iterative writing** — propose the structure, get feedback, then fill in the checklist. Never dump a full plan in one shot.
 
 ## Plan Structure
 
-### Specification (Beginning)
+### Human-facing
 
-**Overview** — What we're building and why.
+- **Overview** — what & why, 1–3 lines. If scope was explicitly bounded, note exclusions here.
+- **Success Criteria** — checkboxes; defines "done."
+- **Architecture** — show, don't list. Fenced blocks only, no bullets or prose:
+  - **Mermaid** for data flow, sequence, state — anything graph-like
+  - **Plain text block** for the directory tree, with `[A]`/`[M]` markers and inline annotations
+  - **Code snippet** only where the shape is non-obvious
+- **Branch & Commit Strategy** — naming, granularity, PR approach; adapted to the repo's conventions.
 
-**Success Criteria** — Checkboxes for acceptance criteria (functional, technical, documentation). These define "done."
+### Agent-facing
 
-**What We're NOT Doing** — Explicit scope boundaries.
+- **Checklist** — first line declares the mode: `verification: TDD | test-after | manual`
+  - `### Phase N:` human-readable milestones
+  - `- [ ] Task:` one behavior, 1–3 files
+    - `RED:` failing test + file (only when TDD)
+    - `GREEN:` minimal change + file
+    - `CHECK:` command + expected result (test + type-check/lint)
+  - TDD discipline: minimal GREEN, refactor only after GREEN, never while RED.
+  - Deviations during implementation: note inline on the affected task.
 
-**Risks & Blockers** — What could go wrong, unknowns, dependencies.
+## Template
 
-**Branch & Commit Strategy** — Branch naming, commit granularity, PR approach.
-
-**Architecture** — Data flow, component interactions, schema/migrations, endpoints with function signatures, component structure. Show patterns, not full code.
-
-**Testing Strategy** — Test types (unit/integration/e2e), file locations, framework, lint/type-check commands.
-
-### Implementation Checklist (Core)
-
-**Phases** (optional): `### Phase N: [Name]` — major milestones.
-
-**Tasks**: `- [ ] **Task N: [Description]**` — one behavior, 1–3 files, completable in one session.
-
-- `  - RED: [Test] in [test file]` — failing test for this task
-- `  - GREEN: [Code change] in [source file]` — minimal pass
-- `  - CHECK: [Command] — [expected result]` — includes test + type-check/lint
-
-### Tracking (End)
-
-**Tracked Changes** — Significant deviations with rationale. **References** — tickets, prior docs, similar code.
-
-## Planning Process
-
-### 1. Context Gathering
-
-Research the codebase (and web, where current best practices matter) deeply. Read files fully, include `file:line` references, identify patterns.
-
-### 2. Deep-Dive Alignment (90% Confidence Gate)
-
-**Do NOT write planning docs until 90% confidence.**
-
-After each round of questions, report: `Current confidence: X%. [gaps if below 90%]`
-
-Keep asking until you could explain the plan back and the user would say "yes, exactly." Cover requirements, edge cases, technical decisions, scope boundaries, testing strategy.
-
-For complex plans where this lighter gate isn't enough, use `rpi grill` (see [grilling](./grilling.md)) — it walks every decision-tree branch exhaustively.
-
-### 3. Iterative Writing
-
-Don't write the full plan in one shot. Propose structure, get feedback, then fill in the checklist.
-
-## Code Snippets in Architecture
-
-Show structure, not full implementation:
-
-```typescript
-async function handleUserCreate(req: Request): Promise<Response> {
-  // 1. Validate with zod schema  2. Check auth  3. Create in DB  4. Return
-}
-```
-
----
-
-## Plan Template
-
-Body for `rpi write --type plan --topic "..."` (frontmatter/filename handled by the script):
-
-```markdown
+````markdown
 # [Feature] Implementation Plan
 
 ## Overview
-[What and why.]
+[What and why, 1–3 lines.]
 
 ## Success Criteria
 - [ ] [Functional / technical / quality requirement]
 
-## What We're NOT Doing
-[Out of scope.]
+## Architecture
 
-## Risks & Blockers
-[Unknowns, dependencies.]
+[mermaid data-flow diagram]
+
+```text
+src/
+  feature/
+    existing.ts   [M]  what changes
+    new.ts        [A]  what it does
+tests/
+  feature.test.ts [A]
+```
+
+[snippet only where the shape is non-obvious]
 
 ## Branch & Commit Strategy
-[Branch, commits, PR — adapted to the repo's conventions]
+[Branch, commits, PR — adapted to the repo's conventions.]
 
-## Architecture
-[Data flow, components, schema, endpoints.]
-
-## Testing Strategy
-**Test Types:** Unit / Integration / E2E · **Framework:** Jest / Vitest · **Quality:** lint, type-check
-
-## Implementation Checklist
+## Checklist — verification: TDD
 
 ### Phase 1: [Name]
 - [ ] **Task 1: [Desc]**
   - RED: Write test for [behavior] in `path/to/test`
   - GREEN: Implement [change] in `path/to/source`
   - CHECK: `npm test` — passes; `npm run type-check` — no errors
-
-## Tracked Changes
-> Record significant deviations.
-
-## References
-- Related docs: [path] · Similar impl: `file:line`
-```
+````
