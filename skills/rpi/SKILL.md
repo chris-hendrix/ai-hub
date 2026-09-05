@@ -3,68 +3,19 @@ name: rpi
 description: "Consolidated research-plan-review-implement workflow. Use when the user wants to research or explore solutions, create an implementation plan, review a plan or artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .thoughts/, or grill a plan/design through relentless interviewing. Keywords: research, plan, review, implement, handoff, pickup, write, grill."
 ---
 
-# rpi — Research, Plan, Evaluate, Implement
+# rpi — Research, Plan, Review, Implement
 
-Unified entry point for the research-plan-review-implement workflow.
-
-## Workflow
-
-```
-research (optional) → plan → review → implement
-```
-
-- **research** — explore solutions with the user. Dialogue mode: establish the problem and what good looks like, then explore code/web together. Nothing is written. Optional — skip for simple changes.
-- **plan** — TDD-structured implementation plan with RED/GREEN/CHECK tasks. Researches the codebase and web as needed. Includes branch & commit strategy.
-- **review** — review a plan (or any artifact) against explicit dimensions; report a list of findings.
-- **grill** — interview the user relentlessly about a plan or design, walking every branch of the decision tree until reaching shared understanding. Interstitial — usable at any phase.
-- **implement** — execute a plan phase by phase through vertical RED/GREEN cycles.
-
-## Keyword Reference
-
-| Keyword | Syntax | What it does |
-|---------|--------|--------------|
-| `research` | `research <topic>` | Explore solutions collaboratively (optional — skip for simple changes) |
-| `plan` | `plan <description or .thoughts doc path>` | Create a TDD-structured implementation plan |
-| `review` | `review <plan or artifact>` | Review a plan/artifact against explicit dimensions; report findings |
-| `grill` | `grill <topic>` | Interview the user relentlessly about a plan or design, walking the decision tree |
-| `handoff` | `handoff [description of next session]` | Summarize the current conversation into a handoff doc for another agent |
-| `pickup` | `pickup [path to handoff]` | Resume work from a handoff document |
-| `implement all` | `implement all [plan path]` | Implement all phases from a plan |
-| `implement phase N` | `implement phase N [plan path]` | Implement a specific phase from a plan |
-| `write` | `rpi write --help` | Save the most recent output to `.thoughts/` — fully scripted; the LLM's only job is the title (`--topic`) |
-
-## Doc Context
-
-Any keyword can accept a path to an existing `.thoughts/` document as context:
-
-- `plan .thoughts/plans/2026-04-25-my-plan.md` — plan from an existing doc
-- `review .thoughts/plans/2026-04-25-my-plan.md` — review a plan
-- `implement all .thoughts/plans/2026-04-25-my-plan.md` — implement from a specific plan
-- `pickup .thoughts/handoffs/2026-05-24-auth-refactor.md` — resume from a specific handoff
-
-For `implement` with no explicit path, find the most recent `.thoughts/plans/*.md` file and confirm with the user before proceeding. If no plan files exist, tell the user and suggest running `rpi plan` first.
-
-## Dispatch
-
-Parse the first word of the input as the keyword. For `implement`, parse `all` or `phase N`.
+Parse the first word of the input as the keyword (`implement all [plan]` / `implement phase N [plan]` is the shape there). Any keyword accepts a path to a `.thoughts/` document as context; `implement` with no path uses the most recent `.thoughts/plans/*.md` (confirm with the user). Unknown or missing keyword → show the table and ask.
 
 | Keyword | Reference |
 |---------|-----------|
-| `research` | [research](references/research.md) |
-| `plan` | [plan](references/plan.md) |
-| `review` | [review](references/review.md) |
-| `grill` | [grill](references/grill.md) |
-| `implement` | [implement](references/implement.md) |
-| `handoff` | [handoff](references/handoff.md) |
-| `pickup` | [pickup](references/pickup.md) |
-| `write` | [write](references/write.md) |
+| `research <topic>` | [research](references/research.md) — explore solutions with the user |
+| `plan <description \| doc path>` | [plan](references/plan.md) — TDD-structured implementation plan |
+| `review <plan \| artifact>` | [review](references/review.md) — findings list + verdict |
+| `grill <topic>` | [grill](references/grill.md) — relentless interview until fully aligned |
+| `implement [all \| phase N] [plan path]` | [implement](references/implement.md) — orchestrate subagents through a plan's checklist |
+| `handoff [focus]` | [handoff](references/handoff.md) — summarize session for another agent; writes immediately |
+| `pickup [path]` | [pickup](references/pickup.md) — resume from a handoff |
+| `write` | [write](references/write.md) — save recent output; scripted |
 
-Document conventions are owned by the script — see [write](references/write.md).
-
-## Write
-
-Most workflows save nothing automatically. When the user says `write`, see [write](references/write.md). `research` never writes.
-
-## Unknown or Missing Keyword
-
-If invoked with no keyword or an unrecognized keyword, show the keyword reference table above and ask the user what they'd like to do.
+`research` never writes; `handoff` and explicit `write` do.
