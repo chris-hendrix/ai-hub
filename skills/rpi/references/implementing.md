@@ -6,7 +6,7 @@ Execute from plans with mandatory review checkpoints. The plan file is the sourc
 
 - **Critical review before starting**: Read plans skeptically; raise concerns before executing.
 - **TDD**: Each task RED (failing test) → GREEN (minimal pass). See [planning](./planning.md).
-- **Commit after GREEN**: Clean audit trail (see [git-strategy](./git-strategy.md)).
+- **Commit after GREEN**: Clean audit trail.
 - **Refactor after GREEN**: Pause, dedupe, deepen. Run tests after each step. Never refactor while RED.
 - **Phase-by-phase**: Complete one phase fully before the next. Get sign-off at phase boundaries.
 - **Fail fast**: Stop on blockers; don't proceed speculatively.

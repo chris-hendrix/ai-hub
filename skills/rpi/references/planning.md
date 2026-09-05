@@ -25,7 +25,7 @@ Save via `skills/rpi/scripts/rpi write --type plan --topic "..."` — frontmatte
 
 **Risks & Blockers** — What could go wrong, unknowns, dependencies.
 
-**Branch & Commit Strategy** — Branch naming, commit granularity, PR approach (see [git-strategy](./git-strategy.md)).
+**Branch & Commit Strategy** — Branch naming, commit granularity, PR approach.
 
 **Architecture** — Data flow, component interactions, schema/migrations, endpoints with function signatures, component structure. Show patterns, not full code.
 
@@ -97,7 +97,7 @@ Body for `rpi write --type plan --topic "..."` (frontmatter/filename handled by 
 [Unknowns, dependencies.]
 
 ## Branch & Commit Strategy
-[Branch, commits, PR — see git-strategy.md]
+[Branch, commits, PR — adapted to the repo's conventions]
 
 ## Architecture
 [Data flow, components, schema, endpoints.]
