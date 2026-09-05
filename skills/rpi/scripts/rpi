@@ -246,20 +246,27 @@ cmd_pickup() {
       *) file="$1"; shift ;;
     esac
   done
-  if [[ -n "$file" ]]; then
-    resolve_plan "$file"
+  if [[ "$list" -eq 1 ]]; then
+    local dir="${REPO_ROOT}/.thoughts/handoffs"
+    if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+      echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
+    fi
+    ls -1 "$dir" | sort -r | sed "s|^|$dir/|"
     return
   fi
-  local dir="${REPO_ROOT}/.thoughts/handoffs"
-  if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
-    echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
-  fi
-  # newest first (filenames start with YYYY-MM-DD)
-  if [[ "$list" -eq 1 ]]; then
-    ls -1 "$dir" | sort -r | sed "s|^|$dir/|"
+  if [[ -z "$file" ]]; then
+    local dir="${REPO_ROOT}/.thoughts/handoffs"
+    if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
+      echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
+    fi
+    file="$dir/$(ls -1 "$dir" | sort -r | head -1)"
   else
-    ls -1 "$dir" | sort -r | head -1 | sed "s|^|$dir/|"
+    file="$(resolve_plan "$file")"
   fi
+  # inject: path header + full content
+  echo "# handoff: $file"
+  echo
+  cat "$file"
 }
 
 usage() {
