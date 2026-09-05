@@ -5,7 +5,7 @@ description: "Consolidated research-plan-review-implement workflow. Use when the
 
 # rpi — Research, Plan, Review, Implement
 
-Parse the first word of the input as the keyword (`implement all [plan]` / `implement phase N [plan]` is the shape there). Any keyword accepts a path to a `.rpi/` document as context; `implement` with no path uses the most recent `.rpi/plans/*.md` (confirm with the user). Unknown or missing keyword → show the table and ask.
+Parse the first word of the input as the keyword (`implement all [plan]` / `implement phase N [plan]` is the shape there). `plan`, `review`, and `implement` accept a path to a `.rpi/` document as context; `implement` with no path uses the most recent `.rpi/plans/*.md` (confirm with the user). Unknown or missing keyword → show the table and ask.
 
 | Keyword | Reference |
 |---------|-----------|

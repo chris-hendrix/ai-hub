@@ -12,4 +12,4 @@ The next agent has **zero conversation history** — the handoff is all it gets.
 
 Reference other artifacts by path only if the next agent genuinely needs them. Redact API keys, passwords, tokens, PII.
 
-If args were passed to `rpi handoff`, tailor toward that focus; otherwise, general session summary.
+If focus args were passed to the `handoff` keyword, tailor toward that focus; otherwise, general session summary.

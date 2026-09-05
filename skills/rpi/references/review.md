@@ -1,6 +1,6 @@
 # Review
 
-Review a plan (or any artifact) and report findings as a list — each finding: what, where (section/line), severity (blocking / should-fix / nit), and a concrete suggestion. No template, nothing written.
+Review a plan (or any artifact) and report findings as a list — each finding: what, where (section/line), severity (blocking / should-fix / nit), and a concrete suggestion. Output stays in-chat; persist with `write` only if the user asks.
 
 Review against these dimensions:
 
