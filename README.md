@@ -9,11 +9,11 @@ Also available via [skills.sh](https://skills.sh).
 | Dir | Contents | Install |
 |-----|----------|---------|
 | `harness/.opencode/` | opencode home: `opencode.json`, `agents/` (deep, fast, orchestrate), `skills/` | `~/.opencode` + `~/.config/opencode` symlinks |
-| `harness/.pi/` | pi home: `agent/settings.json`, `agent/skills/` | `~/.pi` symlink |
+| `harness/.pi/` | pi home: `agent/settings.json` (modes, tiers), `agent/agents/` (deep/mid/fast/view), `agent/extensions/` (modes.ts), `agent/skills/` | `~/.pi` symlink |
 | `skills/` | Shared custom skills — source of truth for **both** agents (currently `rpi`) | intra-repo symlinks into `harness/.opencode/skills` + `harness/.pi/agent/skills` |
 | `.env.example` | Required env vars (`CONTEXT7_API_KEY`, etc.) | copy to `~/.zshrc` or export |
 
-## Agents
+## Agents (opencode)
 
 | Agent | Model | Purpose |
 |-------|-------|---------|
@@ -22,6 +22,10 @@ Also available via [skills.sh](https://skills.sh).
 | **orchestrate** | deepseek-v4-pro | Central dispatch: plans, delegates, and verifies all work |
 
 Note: `view` was merged/removed — image analysis is handled by `deep`/`fast`.
+
+## Pi tier modes
+
+pi (`harness/.pi/agent/`) has four tier modes — `/deep`, `/mid`, `/fast`, `/view` — each backed by a same-named agent file (`agent/agents/*.md`) that is the single source of truth for its instructions and tools. Each mode resolves its model through `subagents.agentOverrides.<tier>.model` in `agent/settings.json`. Delegation is down-only: deep → mid/fast/view, mid → fast/view, fast → fast/view, view → none.
 
 ## Skills
 

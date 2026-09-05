@@ -16,7 +16,9 @@ ai-hub/
 │   └── .pi/                # pi home — symlinked as ~/.pi
 │       ├── .gitignore      # secrets + runtime + skills/* (pi skills are user-managed, not tracked)
 │       └── agent/
-│           ├── settings.json   # tracked (packages: pi-web-access, defaultProvider)
+│           ├── settings.json   # tracked (modes, agentOverrides, defaultProvider)
+│           ├── agents/         # tracked tier agents: deep/mid/fast/view (*.md = single source)
+│           ├── extensions/     # tracked (modes.ts = tier modes)
 │           └── skills/         # gitignored — reinstall per-skill via `npx skills add <name> --agent pi`
 ├── skills/rpi/             # opencode skill source of truth (pi will get its own rpi extension separately)
 ├── .env.example            # required env vars (CONTEXT7_API_KEY, etc.)
@@ -87,4 +89,5 @@ Backups from `migrate` are at `~/.opencode.bak-*`, `~/.config/opencode.bak-*`, `
 
 - Do not commit `bin/`, `node_modules/`, `package*.json`, `bun.lock` under `harness/.opencode/` — they are opencode-managed runtime.
 - Do not commit `npm/` or `bin/` under `harness/.pi/agent/` — pi-managed runtime.
-- `harness/.opencode/.gitignore` is **committed**; opencode's `ensureGitignore` only writes it when missing, so ours is preserved (and includes the extra `bin/` entry).
+- `harness/.pi/agent/settings.json`, `harness/.pi/agent/agents/*.md`, and `harness/.pi/agent/extensions/*.ts` are living config — editing modes, tier models, or instructions is a normal part of a change. Commit them together with the feature that prompted them; don't treat them as off-limits or ask before committing. (Only the gitignored secrets/runtime listed above are never committed.)
+  - `agentOverrides.<tier>.model` may also change at runtime when a mode's model is switched (`/model` while in a mode) — such diffs are expected and safe to commit.
