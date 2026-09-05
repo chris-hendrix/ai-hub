@@ -1,4 +1,4 @@
-# Writing Output
+# Write
 
 Persist via `skills/rpi/scripts/rpi write --type <type> --topic "<title>"` — body on stdin. If the last message is already the artifact, pass it through unchanged — don't regenerate.
 

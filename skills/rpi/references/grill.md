@@ -1,4 +1,4 @@
-# Grilling Plans and Designs
+# Grill
 
 Interview the user relentlessly about a plan or design until you're confident no consequential question remains unasked.
 

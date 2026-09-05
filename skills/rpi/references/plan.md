@@ -1,4 +1,4 @@
-# Planning
+# Plan
 
 Plans are persistent, self-sufficient documents — all context needed to implement without conversation history.
 
@@ -7,7 +7,7 @@ Plans are persistent, self-sufficient documents — all context needed to implem
 ## Process
 
 1. **Context gathering** — read the codebase fully first (and the web where current best practice matters). Include `file:line` references.
-2. **Align fully** — question the user relentlessly (one at a time, offering your position) until you're 100% confident: you could explain the plan back and the user would say "yes, exactly." Escalate to `grill` (see [grilling](./grilling.md)) for complex plans.
+2. **Align fully** — question the user relentlessly (one at a time, offering your position) until you're 100% confident: you could explain the plan back and the user would say "yes, exactly." Escalate to `grill` (see [grill](./grill.md)) for complex plans.
 3. **Produce the plan** — complete, in one pass: all sections, full checklist.
 
 ## Plan Structure

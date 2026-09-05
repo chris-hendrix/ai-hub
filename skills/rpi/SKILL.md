@@ -50,20 +50,20 @@ Parse the first word of the input as the keyword. For `implement`, parse `all` o
 
 | Keyword | Reference |
 |---------|-----------|
-| `research` | [researching](references/researching.md) |
-| `plan` | [planning](references/planning.md) |
+| `research` | [research](references/research.md) |
+| `plan` | [plan](references/plan.md) |
 | `review` | [review](references/review.md) |
-| `grill` | [grilling](references/grilling.md) |
-| `implement` | [implementing](references/implementing.md) |
+| `grill` | [grill](references/grill.md) |
+| `implement` | [implement](references/implement.md) |
 | `handoff` | [handoff](references/handoff.md) |
 | `pickup` | [pickup](references/pickup.md) |
-| `write` | [writing](references/writing.md) |
+| `write` | [write](references/write.md) |
 
-Document conventions are owned by the script — see [writing](references/writing.md).
+Document conventions are owned by the script — see [write](references/write.md).
 
-## Writing Output
+## Write
 
-Most workflows save nothing automatically. When the user says `write`, see [writing](references/writing.md). `research` never writes.
+Most workflows save nothing automatically. When the user says `write`, see [write](references/write.md). `research` never writes.
 
 ## Unknown or Missing Keyword
 
