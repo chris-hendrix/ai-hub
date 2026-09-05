@@ -1,6 +1,6 @@
 # Handoff
 
-Summarize the current conversation into a handoff for another agent. Writes immediately via the script when the keyword is invoked.
+Summarize the current conversation into a handoff for another agent. **Writing is the final step** — produce the summary, then write it via `rpi write handoffs`.
 
 The next agent has **zero conversation history** — the handoff is all it gets. Cover:
 
