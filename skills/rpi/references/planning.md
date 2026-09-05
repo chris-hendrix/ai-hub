@@ -1,14 +1,16 @@
-# Writing Implementation Plans
+# Planning
 
 Plans are persistent, self-sufficient documents — all context needed to implement without conversation history.
+
+**No code is written during planning** — implementation belongs to `implement`.
 
 Save via `skills/rpi/scripts/rpi write --type plan --topic "..."` — frontmatter and filename are handled by the script (see [writing-documentation](./writing-documentation.md)).
 
 ## Process
 
 1. **Context gathering** — read the codebase fully first (and the web where current best practice matters). Include `file:line` references.
-2. **90% confidence gate** — don't write until you could explain the plan back and the user would say "yes, exactly." Report confidence % after each round of questions; escalate to `grill` (see [grilling](./grilling.md)) for complex plans.
-3. **Iterative writing** — propose the structure, get feedback, then fill in the checklist. Never dump a full plan in one shot.
+2. **Align fully** — question the user relentlessly (one at a time, offering your position) until you're 100% confident: you could explain the plan back and the user would say "yes, exactly." Escalate to `grill` (see [grilling](./grilling.md)) for complex plans.
+3. **Produce the plan** — complete, in one pass: all sections, full checklist.
 
 ## Plan Structure
 
