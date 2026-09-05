@@ -55,6 +55,26 @@ cmd_write() {
   local slug
   slug="$(kebab_case "$topic")"
 
+  # handoff session chain: inherit from newest existing handoff, append current session
+  local session_chain=""
+  if [[ "$type" == "handoff" ]]; then
+    local hdir="${REPO_ROOT}/.thoughts/handoffs"
+    local newest
+    newest="$(ls -1 "$hdir" 2>/dev/null | sort -r | head -1 || true)"
+    if [[ -n "$newest" ]]; then
+      session_chain="$(awk '/^---$/{c++;next} c==1 && /^sessions:/{f=1;next} f && /^- /{sub(/^- +/,""); print; next} {f=0}' "$hdir/$newest")"
+    fi
+    local sid="${PI_SESSION_ID:-}"
+    if [[ -n "$sid" ]]; then
+      if [[ -n "$session_chain" ]] && ! grep -qx "$sid" <<<"$session_chain"; then
+        session_chain="$session_chain
+$sid"
+      elif [[ -z "$session_chain" ]]; then
+        session_chain="$sid"
+      fi
+    fi
+  fi
+
   local filename
   if [[ -n "$ticket" ]]; then
     local ticket_slug
@@ -64,7 +84,7 @@ cmd_write() {
     filename="${date}-${slug}.md"
   else
     # no topic — timestamped filename
-    filename="${date}-$(date +%H%M).md"
+    filename="${date}-$(date +%H%M%S).md"
   fi
 
   local body
@@ -88,6 +108,10 @@ cmd_write() {
     fi
     if [[ -n "$front_status" ]]; then
       echo "status: ${front_status}"
+    fi
+    if [[ -n "$session_chain" ]]; then
+      echo "sessions:"
+      while IFS= read -r s; do echo "- ${s}"; done <<<"$session_chain"
     fi
     echo "---"
     echo ""

@@ -10,6 +10,6 @@ The next agent has **zero conversation history** — the handoff is all it gets.
 
 **What comes next:** concrete next steps in priority order, open questions, what "done" looks like.
 
-Reference other `.thoughts/` artifacts by path instead of restating them. Redact API keys, passwords, tokens, PII.
+Reference other artifacts by path only if the next agent genuinely needs them. Redact API keys, passwords, tokens, PII.
 
 If args were passed to `rpi handoff`, tailor toward that focus; otherwise, general session summary.
