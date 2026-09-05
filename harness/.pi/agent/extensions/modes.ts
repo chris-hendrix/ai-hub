@@ -1,28 +1,32 @@
 /**
- * Modes extension — named main-session personas (plan / orchestrate / build).
+ * Modes extension — tier personas (deep / mid / fast / view).
  *
  * Mode definitions live in settings.json under "modes". Each mode references a
- * model tier by name ("deep" | "mid" | "fast" | "researcher"); tiers resolve
+ * model tier by name ("deep" | "mid" | "fast" | "view"); tiers resolve
  * through subagents.agentOverrides.<tier>.model — the same table pi-subagents
- * uses for the deep/mid/fast/researcher subagents, so a tier's model is
+ * uses for the deep/mid/fast/view subagents, so a tier's model is
  * defined in one place.
  *
- *   /plan  /orchestrate  /build   — switch directly
- *   /mode                          — show current mode + list
- *   /mode <name> | /mode off       — switch / restore defaults
- *   Shift+Tab                      — cycle modes (vanilla → plan → orchestrate → build → vanilla)
- *   pi --preset <name>             — start in a mode
+ *   /deep  /mid  /fast  /view   — switch directly
+ *   /mode                       — show current mode + list
+ *   /mode <name> | /mode off    — switch / restore defaults
+ *   Shift+Tab                   — cycle modes (vanilla → deep → mid → fast → view → vanilla)
+ *   pi --preset <name>          — start in a mode
+ *
+ * Changing models while in a mode (via /model or Ctrl+P) persists the new
+ * model as the default for that tier — it writes back to
+ * subagents.agentOverrides.<tier>.model so both the mode and its subagents
+ * use the new default next time.
  *
  * Shift+Tab cycles through vanilla (no mode) and all defined modes.
  * Vanilla = plain pi, no extra instructions, original tools/model restored.
- * plan mode gets a write guard: write/edit are blocked outside .thoughts/.
  *
- * Settings-level default: add "defaultMode": "plan" at the top level of
+ * Settings-level default: add "defaultMode": "fast" at the top level of
  * settings.json to have pi start in that mode. --preset still wins.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Key } from "@earendil-works/pi-tui";
 
@@ -93,6 +97,7 @@ export default function (pi: ExtensionAPI) {
 	let defaultMode: string | undefined;
 	let active: string | undefined;
 	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[]; thinking: string } | undefined;
+	let applyingModel = false;
 
 	const refresh = (cwd: string) => {
 		const s = loadSettings(cwd);
@@ -105,12 +110,27 @@ export default function (pi: ExtensionAPI) {
 		modeOrder = globalRaw.modes ? Object.keys(globalRaw.modes) : Object.keys(modes);
 	};
 
-	/** Resolve "deep" | "mid" | "fast" | "researcher" (or a literal provider/id) to {provider, id}. */
+	/** Resolve "deep" | "mid" | "fast" | "view" (or a literal provider/id) to {provider, id}. */
 	function resolveModelSpec(spec: string): { provider: string; id: string } {
 		if (!spec.includes("/") && overrides[spec]?.model) spec = overrides[spec].model;
 		const slash = spec.indexOf("/");
 		if (slash > 0) return { provider: spec.slice(0, slash), id: spec.slice(slash + 1) };
 		return { provider: defaultProvider ?? "deepseek", id: spec };
+	}
+
+	function persistOverride(tier: string, model: string) {
+		const p = join(getAgentDir(), "settings.json");
+		if (!existsSync(p)) return;
+		try {
+			const raw = JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>;
+			const sub = ((raw.subagents as Record<string, unknown> | undefined) ?? (raw.subagents = {})) as Record<string, unknown>;
+			const ao = ((sub.agentOverrides as Record<string, unknown> | undefined) ?? (sub.agentOverrides = {})) as Record<string, Record<string, unknown>>;
+			const entry = ((ao[tier] as Record<string, unknown> | undefined) ?? (ao[tier] = {})) as Record<string, unknown>;
+			entry.model = model;
+			writeFileSync(p, JSON.stringify(raw, null, 2) + "\n");
+		} catch {
+			// best-effort; don't break the session on a write failure
+		}
 	}
 
 	async function applyMode(name: string, ctx: ExtensionContext): Promise<boolean> {
@@ -125,8 +145,13 @@ export default function (pi: ExtensionAPI) {
 			const { provider, id } = resolveModelSpec(mode.model);
 			const model = ctx.modelRegistry.find(provider, id);
 			if (model) {
-				const ok = await pi.setModel(model);
-				if (!ok) ctx.ui.notify(`Mode "${name}": no API key for ${provider}/${id}`, "warning");
+				applyingModel = true;
+				try {
+					const ok = await pi.setModel(model);
+					if (!ok) ctx.ui.notify(`Mode "${name}": no API key for ${provider}/${id}`, "warning");
+				} finally {
+					applyingModel = false;
+				}
 			} else {
 				ctx.ui.notify(`Mode "${name}": model ${provider}/${id} not found`, "warning");
 			}
@@ -195,7 +220,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Shift+Tab cycles: (default) → plan → orchestrate → build → (default)
+	// Shift+Tab cycles: (default) → deep → mid → fast → view → (default)
 	const getCycleNames = (): string[] => {
 		const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
 		return [VANILLA_LABEL, ...names];
@@ -251,30 +276,19 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// plan-mode guard: writes are only allowed under .thoughts/.
-	pi.on("tool_call", async (event, ctx) => {
-		if (active !== "plan") return;
-		if (event.toolName !== "write" && event.toolName !== "edit") return;
-		const p = (event.input as { path?: unknown } | undefined)?.path;
-		if (!p) return;
-		const thoughts = resolve(ctx.cwd, ".thoughts");
-		const target = resolve(ctx.cwd, String(p));
-		if (target !== thoughts && !target.startsWith(thoughts + sep)) {
-			return { block: true, reason: `plan mode: writes are only allowed under .thoughts/ (got ${String(p)})` };
-		}
-	});
-
-	// orchestrate read-only bash guard: only git status/diff/log/show/branch/rev-parse allowed
-	const ORCH_READONLY_BASH = /^(git\s+(status|diff|log|show|branch|rev-parse|ls-files)(\s|$))/;
-	pi.on("tool_call", async (event) => {
-		if (active !== "orchestrate") return;
-		if (event.toolName !== "bash") return;
-		const cmd = String((event.input as { command?: unknown } | undefined)?.command ?? "").trim();
-		if (!ORCH_READONLY_BASH.test(cmd)) {
-			return {
-				block: true,
-				reason: `orchestrate mode: bash is read-only — only git status/diff/log/show/branch/rev-parse/ls-files allowed (got: ${cmd.slice(0, 80)})`,
-			};
-		}
+	// Model persistence: changing models while in a tier mode updates that tier's
+	// default (agentOverrides.<tier>.model) so both the mode and its subagents
+	// use the new model next time.
+	pi.on("model_select", async (event, ctx) => {
+		if (!active || applyingModel) return;
+		const source = (event as { source?: string }).source;
+		if (source === "restore") return;
+		const newSpec = event.model ? `${event.model.provider}/${event.model.id}` : undefined;
+		if (!newSpec) return;
+		const current = overrides[active]?.model;
+		if (!current || newSpec === current) return;
+		overrides[active] = { ...overrides[active], model: newSpec };
+		persistOverride(active, newSpec);
+		ctx.ui.notify(`"${active}" default model updated: ${newSpec}`, "info");
 	});
 }
