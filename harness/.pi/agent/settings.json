@@ -17,12 +17,12 @@
     "disableBuiltins": true,
     "agentOverrides": {
       "deep": {
-        "model": "opencode-go/deepseek-v4-pro",
+        "model": "opencode-go/glm-5.3-flash",
         "thinking": "high"
       },
       "mid": {
         "model": "opencode-go/muse-spark-1.3-contributor",
-        "thinking": "high"
+        "thinking": "low"
       },
       "fast": {
         "model": "opencode-go/muse-spark-1.3-contributor",

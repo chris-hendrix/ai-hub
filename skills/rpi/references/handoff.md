@@ -1,43 +1,13 @@
 # Handoff
 
-Two workflows: writing a handoff for another agent, and picking up a handoff to resume.
+Summarize the current conversation into a handoff for another agent. **Writing is the final step** — produce the summary, then write it via `rpi write handoffs`.
 
----
+The next agent has **zero conversation history** — the handoff is all it gets. Cover:
 
-## Creating a Handoff
+1. **What went before:** goals, progress, key decisions (with `file:line` refs), blockers and resolutions.
+2. **Where things stand:** current workspace state (uncommitted changes, branches), risks, relevant `file:line` refs.
+3. **What comes next:** concrete next steps in priority order, open questions, what "done" looks like.
 
-Invoked via `rpi handoff [description]`.
-
-Unlike `brainstorm` / `plan` / `evaluate`, this **always writes immediately** (via `scripts/rpi write --type handoff`).
-
-### Document Content
-
-The next agent has **zero conversation history** — the handoff is all it gets.
-
-**What went before:** goals, progress, key decisions (with `file:line` refs), blockers and resolutions.
-
-**Where things stand:** current workspace state (uncommitted changes, branches), risks, relevant `file:line` refs.
-
-**What comes next:** concrete next steps in priority order, open questions, what "done" looks like.
-
-**Suggested skills:** e.g. `rpi implement`, `rpi plan`.
-
-Reference other `.thoughts/` artifacts by path instead of restating them:
-
-```markdown
-See [implementation plan](../plans/2026-05-24-auth-refactor.md) for full task breakdown.
-```
-
-Redact API keys, passwords, tokens, PII.
-
-If args were passed to `rpi handoff`, tailor toward that focus; otherwise, general session summary.
-
----
-
-## Picking Up a Handoff
-
-Invoked via `rpi pickup [path]`.
-
-**With a path** (`rpi pickup .thoughts/handoffs/2026-05-24-auth-refactor.md`): read the file, summarize, ask what to do next.
-
-**Without a path**: glob `.thoughts/handoffs/*.md`, sort by date, confirm with the user, then read and summarize.
+- Reference other artifacts by path only if the next agent genuinely needs them.
+- Redact API keys, passwords, tokens, PII.
+- If focus args were passed to the `handoff` keyword, tailor toward that focus; otherwise, general session summary.

@@ -1,74 +1,19 @@
 ---
 name: rpi
-description: "Consolidated brainstorm-plan-evaluate-implement workflow. Use when the user wants to brainstorm an idea, create an implementation plan, evaluate an artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .thoughts/, or grill a plan/design through relentless interviewing. Keywords: brainstorm, plan, evaluate, implement, handoff, pickup, write, grill."
+description: "Consolidated research-plan-review-implement workflow. Use when the user wants to research or explore solutions, create an implementation plan, review a plan or artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .rpi/, or grill a plan/design through relentless interviewing. Keywords: research, plan, review, implement, handoff, pickup, write, grill."
 ---
 
-# rpi — Brainstorm, Plan, Evaluate, Implement
+# rpi — Research, Plan, Review, Implement
 
-Unified entry point for the brainstorm-plan-evaluate-implement workflow.
-
-## Workflow
-
-```
-brainstorm (optional) → plan → evaluate → implement
-        ↓                    ↓
-   Uses research        Uses research
-```
-
-- **brainstorm** — explore approaches, make a decision. Embeds research (codebase + web). Optional — skip for simple changes.
-- **plan** — TDD-structured implementation plan with RED/GREEN/CHECK tasks. Embeds research. Includes branch & commit strategy.
-- **evaluate** — assess artifacts across quality dimensions with concrete upgrade paths.
-- **grill** — interview the user relentlessly about a plan or design, walking every branch of the decision tree until reaching shared understanding. Interstitial — usable at any phase.
-- **implement** — execute a plan phase by phase through vertical RED/GREEN cycles.
-
-## Keyword Reference
-
-| Keyword | Syntax | What it does |
-|---------|--------|--------------|
-| `brainstorm` | `brainstorm <topic>` | Explore approaches for an idea (optional — skip for simple changes) |
-| `plan` | `plan <description or .thoughts doc path>` | Create a TDD-structured implementation plan |
-| `evaluate` | `evaluate <description>` | Evaluate an artifact across multiple quality dimensions with scoring and upgrade paths |
-| `grill` | `grill <topic>` | Interview the user relentlessly about a plan or design, walking the decision tree |
-| `handoff` | `handoff [description of next session]` | Summarize the current conversation into a handoff doc for another agent |
-| `pickup` | `pickup [path to handoff]` | Resume work from a handoff document |
-| `implement all` | `implement all [plan path]` | Implement all phases from a plan |
-| `implement phase N` | `implement phase N [plan path]` | Implement a specific phase from a plan |
-| `write` | `write` | Save the most recent output to `.thoughts/` |
-
-## Doc Context
-
-Any keyword can accept a path to an existing `.thoughts/` document as context:
-
-- `plan .thoughts/brainstorms/2026-04-25-my-idea.md` — plan from an existing brainstorm
-- `evaluate .thoughts/plans/2026-04-25-my-plan.md` — evaluate a plan
-- `implement all .thoughts/plans/2026-04-25-my-plan.md` — implement from a specific plan
-- `pickup .thoughts/handoffs/2026-05-24-auth-refactor.md` — resume from a specific handoff
-
-For `implement` with no explicit path, find the most recent `.thoughts/plans/*.md` file and confirm with the user before proceeding. If no plan files exist, tell the user and suggest running `rpi plan` first.
-
-## Dispatch
-
-Parse the first word of the input as the keyword. For `implement`, parse `all` or `phase N`.
+Parse the first word of the input as the keyword (`implement all [plan]` / `implement phase N [plan]` is the shape there). `plan`, `review`, and `implement` accept a path to a `.rpi/` document as context; `implement` with no path uses the most recent `.rpi/plans/*.md` (confirm with the user). Unknown or missing keyword → show the table and ask.
 
 | Keyword | Reference |
 |---------|-----------|
-| `brainstorm` | [brainstorming](references/brainstorming.md) |
-| `plan` | [planning](references/planning.md) |
-| `evaluate` | [evaluating](references/evaluating.md) |
-| `grill` | [grilling](references/grilling.md) |
-| `implement` | [implementing](references/implementing.md) |
-| `handoff` | [handoff](references/handoff.md) |
-| `pickup` | [handoff](references/handoff.md) |
-| `write` | [writing-documentation](references/writing-documentation.md) |
-
-Research files ([researching-codebase](references/researching-codebase.md), [researching-web](references/researching-web.md)) are internal to brainstorm and plan — not standalone keywords.
-
-Document conventions across all workflows follow [writing-documentation](references/writing-documentation.md).
-
-## Writing Output
-
-Most workflows save nothing automatically. When the user says `write`, persist via `skills/rpi/scripts/rpi write --type <type> --topic "..."` — body on stdin (see [writing-documentation](references/writing-documentation.md) for types and subdirs). The `implement` workflow prompts at completion; `handoff` writes immediately.
-
-## Unknown or Missing Keyword
-
-If invoked with no keyword or an unrecognized keyword, show the keyword reference table above and ask the user what they'd like to do.
+| `research <topic>` | [research](references/research.md) — explore solutions with the user |
+| `plan <description \| doc path>` | [plan](references/plan.md) — TDD-structured implementation plan |
+| `review <plan \| artifact>` | [review](references/review.md) — findings list + verdict |
+| `grill <topic>` | [grill](references/grill.md) — relentless interview until fully aligned |
+| `implement [all \| phase N] [plan path]` | [implement](references/implement.md) — orchestrate subagents through a plan's checklist |
+| `handoff [focus]` | [handoff](references/handoff.md) — summarize session for another agent |
+| `pickup [path]` | [pickup](references/pickup.md) — resume from a handoff |
+| `write` | [write](references/write.md) — save output to `.rpi/` |
