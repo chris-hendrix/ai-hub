@@ -38,6 +38,7 @@ function truncate(s: string, n: number): string {
 
 export default function (pi: ExtensionAPI) {
 	let timer: ReturnType<typeof setInterval> | undefined;
+	let misses = 0;
 
 	function render(ctx: ExtensionContext, fleet: Fleet) {
 		const entries = fleet.entries ?? [];
@@ -46,9 +47,10 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.setStatus("subagents", undefined);
 			return;
 		}
-		const shown = entries
-			.slice(0, MAX_ENTRIES)
-			.map((e) => `${e.agent ?? "?"}: ${truncate(e.goal ?? "", GOAL_CAP)}`);
+		const shown = entries.slice(0, MAX_ENTRIES).map((e) => {
+			const goal = (e.goal ?? "").trim();
+			return goal ? `${e.agent ?? "?"}: ${truncate(goal, GOAL_CAP)}` : `${e.agent ?? "?"}`;
+		});
 		let line = `⧉ ${total} · ${shown.join(" · ")}`;
 		if (total > shown.length) line += ` · +${total - shown.length}`;
 		ctx.ui.setStatus("subagents", line);
@@ -57,14 +59,21 @@ export default function (pi: ExtensionAPI) {
 	function poll(ctx: ExtensionContext) {
 		const requestId = randomUUID();
 		const channel = `subagents:rpc:v1:reply:${requestId}`;
+		const guard = setTimeout(() => {
+			unsubscribe();
+			if (++misses >= 3) ctx.ui.setStatus("subagents", undefined);
+		}, POLL_MS + 500);
 		const unsubscribe = pi.events.on(channel, (reply) => {
+			clearTimeout(guard);
 			unsubscribe();
 			const r = reply as StatusReply;
-			if (r?.success !== true || !r.data?.fleet) return;
+			if (r?.success !== true || !r.data?.fleet) {
+				if (++misses >= 3) ctx.ui.setStatus("subagents", undefined);
+				return;
+			}
+			misses = 0;
 			render(ctx, r.data.fleet);
 		});
-		// Bound the one-shot listener if pi-subagents never replies.
-		setTimeout(unsubscribe, POLL_MS + 500);
 		pi.events.emit("subagents:rpc:v1:request", { version: 1, requestId, method: "status", params: {} });
 	}
 
