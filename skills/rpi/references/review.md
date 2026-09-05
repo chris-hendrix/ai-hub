@@ -13,4 +13,10 @@ Review against these dimensions:
 
 Read the relevant code before claiming something doesn't match it.
 
+End with a verdict:
+
+- ✅ **Approved** — no findings beyond nits
+- 💡 **Approved with suggestions** — nits and should-fixes; nothing blocking
+- 🚫 **Changes requested** — one or more blocking findings
+
 When subagents are available, run the review in one — a reviewer without the author's conversation history judges the plan on its own terms. Otherwise, review from the plan document alone, deliberately ignoring the session's context.
