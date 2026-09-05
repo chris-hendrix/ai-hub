@@ -1,6 +1,7 @@
 # Secrets / machine-specific (never version)
 agent/auth.json
 agent/models-store.json
+agent/run-history.jsonl
 agent/sessions/
 web-search-cache/
 

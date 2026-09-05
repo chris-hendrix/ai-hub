@@ -1,9 +1,10 @@
 {
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "theme": "dark",
   "defaultProvider": "deepseek",
-  "defaultModel": "deepseek-v4-pro",
-  "defaultThinkingLevel": "high",
+  "defaultModel": "opencode-go/muse-spark-1.2-contributor",
+  "defaultThinkingLevel": "low",
+  "defaultMode": "fast",
   "packages": [
     "npm:pi-web-access",
     {
@@ -16,62 +17,35 @@
     "disableBuiltins": true,
     "agentOverrides": {
       "deep": {
-        "model": "deepseek/deepseek-v4-pro",
+        "model": "opencode-go/deepseek-v4-pro",
         "thinking": "high"
       },
       "mid": {
-        "model": "deepseek/deepseek-v4-flash",
+        "model": "opencode-go/muse-spark-1.3-contributor",
         "thinking": "high"
       },
       "fast": {
-        "model": "opencode-go/muse-spark-1.2-contributor",
+        "model": "opencode-go/muse-spark-1.3-contributor",
         "thinking": "low"
       },
       "view": {
-        "model": "deepseek/deepseek-v4-flash-vision-exp",
+        "model": "opencode-go/deepseek-v4-flash-vision-exp",
         "thinking": "low"
       }
     }
   },
   "modes": {
-    "plan": {
-      "model": "deep",
-      "tools": [
-        "read",
-        "grep",
-        "find",
-        "ls",
-        "write"
-      ],
-      "instructions": "You are in PLAN mode: read-only exploration. You may write files ONLY under .thoughts/ (plans, notes, handoffs). Never edit or modify source code.\n\nWorkflow:\n1. Explore thoroughly — read files in full, grep/find for related code, trace dependencies.\n2. Produce a numbered implementation plan: Goal, Plan (what to change, why, risks), Files to Modify, New Files, Tests, Risks.\n3. Ask whether to persist the plan to .thoughts/plans/ or proceed (switch to /orchestrate or /build).\n4. Maintain a short checklist in your response and keep it updated."
+    "deep": {
+      "model": "deep"
     },
-    "orchestrate": {
-      "model": "mid",
-      "tools": [
-        "read",
-        "grep",
-        "find",
-        "ls",
-        "bash",
-        "subagent",
-        "web_search",
-        "fetch_content",
-        "get_search_content"
-      ],
-      "instructions": "You are in ORCHESTRATE mode: central dispatch. You NEVER edit or write files. Bash is read-only — only git status/diff/log/show/branch/rev-parse/ls-files for verification (any other bash is blocked).\n\nWorkflow:\n1. Understand the task. If the task needs codebase context, dispatch fast/mid to gather it first; if it needs external facts, dispatch fast or mid (both have web_search/fetch_content) with a focused research prompt.\n2. Break work into distinct, verifiable tasks. For each task decide: Agent (fast=default — code changes from an existing plan + mechanical edits; mid=medium complexity; deep=trusted advisor ONLY, very rarely; view=images), Runs With (which task numbers execute in parallel — — if blocked), and Size (split tasks touching >5 files or >200 lines).\n3. Present the plan as a table and ask \"Proceed? (Y/n)\" — wait for confirmation.\n\n| # | Task | Agent | Runs With |\n|---|------|-------|-----------|\n| 1 | ... | fast | — |\n\n4. Dispatch: run parallel tasks together via multiple subagent calls (max 5 in parallel). Serial tasks one at a time. Subagent prompts must be self-contained with full context and acceptance criteria.\n5. Evaluate each result:\n   - success → mark done, move to next\n   - fast: partial/failed/struggling → escalate to mid with the fast report as context (do NOT retry fast)\n   - mid: failed → retry once with more specifics, then escalate to user\n   - deep: advisory only — weigh its recommendation, decide yourself, do not loop it\n   - Suggested follow-ups → evaluate if new tasks should be added\n\nGuards:\n- Max 3 retries per task (escalation counts as a retry)\n- If total tasks exceed 20, present a summary and ask to reprioritize\n- Use write only via a delegated subagent; keep a short progress checklist in your responses\n- For image/screenshot tasks, delegate to view with the file path\n- Housekeeping commands (git add/commit/push): use a host subprocess via workflowScript runs.host — never a subagent — they need no LLM reasoning\n- Use read-only git bash (git status/diff/log) yourself between dispatches to verify subagent work — do not delegate just to inspect state\n\n6. When all tasks complete, summarize: what was done, what failed, any issues, next steps."
+    "mid": {
+      "model": "mid"
     },
-    "build": {
-      "model": "fast",
-      "tools": [
-        "read",
-        "edit",
-        "write",
-        "bash",
-        "grep",
-        "find",
-        "ls"
-      ],
-      "instructions": "You are in BUILD mode: focused implementation. Keep scope tight — do exactly what was asked. Read before editing; prefer surgical edits over full rewrites. Run tests and type checks after changes (when the project has them). If unexpected complexity arises, stop and explain rather than hacking around it. Summarize changes and follow-ups when done."
+    "fast": {
+      "model": "fast"
+    },
+    "view": {
+      "model": "view"
     }
   }
 }

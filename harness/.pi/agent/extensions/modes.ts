@@ -1,28 +1,38 @@
 /**
- * Modes extension — named main-session personas (plan / orchestrate / build).
+ * Modes extension — tier personas (deep / mid / fast / view).
  *
  * Mode definitions live in settings.json under "modes". Each mode references a
- * model tier by name ("deep" | "mid" | "fast" | "researcher"); tiers resolve
+ * model tier by name ("deep" | "mid" | "fast" | "view"); tiers resolve
  * through subagents.agentOverrides.<tier>.model — the same table pi-subagents
- * uses for the deep/mid/fast/researcher subagents, so a tier's model is
+ * uses for the deep/mid/fast/view subagents, so a tier's model is
  * defined in one place.
  *
- *   /plan  /orchestrate  /build   — switch directly
- *   /mode                          — show current mode + list
- *   /mode <name> | /mode off       — switch / restore defaults
- *   Shift+Tab                      — cycle modes (vanilla → plan → orchestrate → build → vanilla)
- *   pi --preset <name>             — start in a mode
+ * A mode's instructions and tools come from its tier agent file
+ * (<agentDir>/agents/<tier>.md) — the body is injected as the mode's
+ * instructions and the frontmatter `tools` become the mode's tool allowlist.
+ * Explicit `instructions` / `tools` on a mode definition override the file,
+ * so the agent file stays the single source of truth for each tier.
+ *
+ *   /deep  /mid  /fast  /view   — switch directly
+ *   /mode                       — show current mode + list
+ *   /mode <name> | /mode off    — switch / restore defaults
+ *   Shift+Tab                   — cycle modes (vanilla → deep → mid → fast → view → vanilla)
+ *   pi --preset <name>          — start in a mode
+ *
+ * Changing the model or thinking level while in a mode (via /model, Ctrl+P, or
+ * /thinking) persists the new values as the defaults for that tier — it writes
+ * back to subagents.agentOverrides.<tier>.{model,thinking} so both the mode and
+ * its subagents use the new defaults next time.
  *
  * Shift+Tab cycles through vanilla (no mode) and all defined modes.
  * Vanilla = plain pi, no extra instructions, original tools/model restored.
- * plan mode gets a write guard: write/edit are blocked outside .thoughts/.
  *
- * Settings-level default: add "defaultMode": "plan" at the top level of
+ * Settings-level default: add "defaultMode": "fast" at the top level of
  * settings.json to have pi start in that mode. --preset still wins.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Key } from "@earendil-works/pi-tui";
 
@@ -93,6 +103,8 @@ export default function (pi: ExtensionAPI) {
 	let defaultMode: string | undefined;
 	let active: string | undefined;
 	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[]; thinking: string } | undefined;
+	let applyingModel = false;
+	let applyingThinking = false;
 
 	const refresh = (cwd: string) => {
 		const s = loadSettings(cwd);
@@ -105,12 +117,80 @@ export default function (pi: ExtensionAPI) {
 		modeOrder = globalRaw.modes ? Object.keys(globalRaw.modes) : Object.keys(modes);
 	};
 
-	/** Resolve "deep" | "mid" | "fast" | "researcher" (or a literal provider/id) to {provider, id}. */
+	/** Resolve "deep" | "mid" | "fast" | "view" (or a literal provider/id) to {provider, id}. */
 	function resolveModelSpec(spec: string): { provider: string; id: string } {
 		if (!spec.includes("/") && overrides[spec]?.model) spec = overrides[spec].model;
 		const slash = spec.indexOf("/");
 		if (slash > 0) return { provider: spec.slice(0, slash), id: spec.slice(slash + 1) };
 		return { provider: defaultProvider ?? "deepseek", id: spec };
+	}
+
+	/** Read a tier agent file (<agentDir>/agents/<name>.md): frontmatter tools + body. */
+	function readAgentFile(name: string): { tools?: string[]; body?: string } {
+		if (!/^[A-Za-z0-9_-]+$/.test(name)) return {};
+		const p = join(getAgentDir(), "agents", `${name}.md`);
+		let raw: string;
+		try {
+			if (!existsSync(p)) return {};
+			raw = readFileSync(p, "utf-8");
+		} catch {
+			return {};
+		}
+		const lines = raw.split("\n");
+		let fmLines: string[] = [];
+		let bodyLines: string[] = lines;
+		if (lines[0]?.trim() === "---") {
+			let end = -1;
+			for (let i = 1; i < lines.length; i++) {
+				if (lines[i]?.trim() === "---") {
+					end = i;
+					break;
+				}
+			}
+			if (end !== -1) {
+				fmLines = lines.slice(1, end);
+				bodyLines = lines.slice(end + 1);
+			}
+		}
+		let tools: string[] | undefined;
+		for (let i = 0; i < fmLines.length; i++) {
+			const m = fmLines[i]?.match(/^tools:\s*(.*)$/);
+			if (!m) continue;
+			const rest = (m[1] ?? "").trim();
+			if (rest) {
+				tools = rest
+					.split(",")
+					.map((t) => t.trim())
+					.filter(Boolean);
+			} else {
+				const items: string[] = [];
+				for (let j = i + 1; j < fmLines.length; j++) {
+					const item = fmLines[j]?.match(/^\s*-\s+(.+)$/)?.[1]?.trim();
+					if (!item) break;
+					items.push(item);
+				}
+				if (items.length > 0) tools = items;
+			}
+			break;
+		}
+		const body = bodyLines.join("\n").trim() || undefined;
+		return { tools, body };
+	}
+
+	function persistOverride(tier: string, patch: { model?: string; thinking?: string }) {
+		const p = join(getAgentDir(), "settings.json");
+		if (!existsSync(p)) return;
+		try {
+			const raw = JSON.parse(readFileSync(p, "utf-8")) as Record<string, unknown>;
+			const sub = ((raw.subagents as Record<string, unknown> | undefined) ?? (raw.subagents = {})) as Record<string, unknown>;
+			const ao = ((sub.agentOverrides as Record<string, unknown> | undefined) ?? (sub.agentOverrides = {})) as Record<string, Record<string, unknown>>;
+			const entry = ((ao[tier] as Record<string, unknown> | undefined) ?? (ao[tier] = {})) as Record<string, unknown>;
+			if (patch.model !== undefined) entry.model = patch.model;
+			if (patch.thinking !== undefined) entry.thinking = patch.thinking;
+			writeFileSync(p, JSON.stringify(raw, null, 2) + "\n");
+		} catch {
+			// best-effort; don't break the session on a write failure
+		}
 	}
 
 	async function applyMode(name: string, ctx: ExtensionContext): Promise<boolean> {
@@ -125,8 +205,13 @@ export default function (pi: ExtensionAPI) {
 			const { provider, id } = resolveModelSpec(mode.model);
 			const model = ctx.modelRegistry.find(provider, id);
 			if (model) {
-				const ok = await pi.setModel(model);
-				if (!ok) ctx.ui.notify(`Mode "${name}": no API key for ${provider}/${id}`, "warning");
+				applyingModel = true;
+				try {
+					const ok = await pi.setModel(model);
+					if (!ok) ctx.ui.notify(`Mode "${name}": no API key for ${provider}/${id}`, "warning");
+				} finally {
+					applyingModel = false;
+				}
 			} else {
 				ctx.ui.notify(`Mode "${name}": model ${provider}/${id} not found`, "warning");
 			}
@@ -134,11 +219,19 @@ export default function (pi: ExtensionAPI) {
 
 		const thinking = mode.thinkingLevel ?? (mode.model ? overrides[mode.model]?.thinking : undefined);
 		if (thinking) {
-			pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
+			applyingThinking = true;
+			try {
+				pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
+			} finally {
+				applyingThinking = false;
+			}
 		}
 
-		if (mode.tools && mode.tools.length > 0) {
-			const valid = mode.tools.filter((t) => pi.getAllTools().some((x) => x.name === t));
+		// Explicit mode tools win; otherwise the tier's agent file frontmatter
+		// (<agentDir>/agents/<tier>.md) is the single source of truth.
+		const toolList = mode.tools && mode.tools.length > 0 ? mode.tools : readAgentFile(name).tools;
+		if (toolList && toolList.length > 0) {
+			const valid = toolList.filter((t) => pi.getAllTools().some((x) => x.name === t));
 			if (valid.length > 0) pi.setActiveTools(valid);
 		}
 
@@ -195,7 +288,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Shift+Tab cycles: (default) → plan → orchestrate → build → (default)
+	// Shift+Tab cycles: (default) → deep → mid → fast → view → (default)
 	const getCycleNames = (): string[] => {
 		const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
 		return [VANILLA_LABEL, ...names];
@@ -245,36 +338,43 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// Inject the active mode's instructions into the system prompt each turn.
+	// Explicit mode instructions win; otherwise the tier's agent file body
+	// (<agentDir>/agents/<tier>.md) is the single source of truth.
 	pi.on("before_agent_start", async (event) => {
-		if (active && modes[active]?.instructions) {
-			return { systemPrompt: `${event.systemPrompt}\n\n${modes[active].instructions}` };
+		if (!active) return;
+		const explicit = modes[active]?.instructions;
+		if (explicit) {
+			return { systemPrompt: `${event.systemPrompt}\n\n${explicit}` };
+		}
+		const { body } = readAgentFile(active);
+		if (body) {
+			return { systemPrompt: `${event.systemPrompt}\n\nYou are in ${active.toUpperCase()} mode.\n\n${body}` };
 		}
 	});
 
-	// plan-mode guard: writes are only allowed under .thoughts/.
-	pi.on("tool_call", async (event, ctx) => {
-		if (active !== "plan") return;
-		if (event.toolName !== "write" && event.toolName !== "edit") return;
-		const p = (event.input as { path?: unknown } | undefined)?.path;
-		if (!p) return;
-		const thoughts = resolve(ctx.cwd, ".thoughts");
-		const target = resolve(ctx.cwd, String(p));
-		if (target !== thoughts && !target.startsWith(thoughts + sep)) {
-			return { block: true, reason: `plan mode: writes are only allowed under .thoughts/ (got ${String(p)})` };
-		}
+	// Model + thinking persistence: changing the model or thinking level while in a
+	// tier mode updates that tier's defaults (agentOverrides.<tier>.{model,thinking})
+	// so both the mode and its subagents use the new values next session.
+	pi.on("model_select", async (event, ctx) => {
+		if (!active || applyingModel) return;
+		const source = (event as { source?: string }).source;
+		if (source === "restore") return;
+		const newSpec = event.model ? `${event.model.provider}/${event.model.id}` : undefined;
+		if (!newSpec) return;
+		const current = overrides[active]?.model;
+		if (!current || newSpec === current) return;
+		overrides[active] = { ...overrides[active], model: newSpec };
+		persistOverride(active, { model: newSpec });
+		ctx.ui.notify(`"${active}" default model updated: ${newSpec}`, "info");
 	});
 
-	// orchestrate read-only bash guard: only git status/diff/log/show/branch/rev-parse allowed
-	const ORCH_READONLY_BASH = /^(git\s+(status|diff|log|show|branch|rev-parse|ls-files)(\s|$))/;
-	pi.on("tool_call", async (event) => {
-		if (active !== "orchestrate") return;
-		if (event.toolName !== "bash") return;
-		const cmd = String((event.input as { command?: unknown } | undefined)?.command ?? "").trim();
-		if (!ORCH_READONLY_BASH.test(cmd)) {
-			return {
-				block: true,
-				reason: `orchestrate mode: bash is read-only — only git status/diff/log/show/branch/rev-parse/ls-files allowed (got: ${cmd.slice(0, 80)})`,
-			};
-		}
+	pi.on("thinking_level_select", async (event, ctx) => {
+		if (!active || applyingThinking) return;
+		const level = (event as { level?: string }).level;
+		if (!level) return;
+		if (overrides[active]?.thinking === level) return;
+		overrides[active] = { ...overrides[active], thinking: level };
+		persistOverride(active, { thinking: level });
+		ctx.ui.notify(`"${active}" default thinking updated: ${level}`, "info");
 	});
 }
