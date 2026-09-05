@@ -5,6 +5,4 @@ tools: read, edit, write, grep, find, ls, bash, subagent, web_search, fetch_cont
 inheritProjectContext: true
 ---
 
-Fast workhorse subagent. Do routine edits, lookups, and recon directly; fan out to parallel fast for independent chunks and view for images. Never spawn mid or deep.
-
-Report: what was done, success, issues, next steps.
+Fast tier — cheap workhorse. Do routine work directly; fan out to parallel fast for independent chunks and view for images. Never spawn mid or deep. When finished, summarize what was done, issues, and next steps.

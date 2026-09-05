@@ -7,6 +7,12 @@
  * uses for the deep/mid/fast/view subagents, so a tier's model is
  * defined in one place.
  *
+ * A mode's instructions and tools come from its tier agent file
+ * (<agentDir>/agents/<tier>.md) — the body is injected as the mode's
+ * instructions and the frontmatter `tools` become the mode's tool allowlist.
+ * Explicit `instructions` / `tools` on a mode definition override the file,
+ * so the agent file stays the single source of truth for each tier.
+ *
  *   /deep  /mid  /fast  /view   — switch directly
  *   /mode                       — show current mode + list
  *   /mode <name> | /mode off    — switch / restore defaults
@@ -118,6 +124,58 @@ export default function (pi: ExtensionAPI) {
 		return { provider: defaultProvider ?? "deepseek", id: spec };
 	}
 
+	/** Read a tier agent file (<agentDir>/agents/<name>.md): frontmatter tools + body. */
+	function readAgentFile(name: string): { tools?: string[]; body?: string } {
+		if (!/^[A-Za-z0-9_-]+$/.test(name)) return {};
+		const p = join(getAgentDir(), "agents", `${name}.md`);
+		let raw: string;
+		try {
+			if (!existsSync(p)) return {};
+			raw = readFileSync(p, "utf-8");
+		} catch {
+			return {};
+		}
+		const lines = raw.split("\n");
+		let fmLines: string[] = [];
+		let bodyLines: string[] = lines;
+		if (lines[0]?.trim() === "---") {
+			let end = -1;
+			for (let i = 1; i < lines.length; i++) {
+				if (lines[i]?.trim() === "---") {
+					end = i;
+					break;
+				}
+			}
+			if (end !== -1) {
+				fmLines = lines.slice(1, end);
+				bodyLines = lines.slice(end + 1);
+			}
+		}
+		let tools: string[] | undefined;
+		for (let i = 0; i < fmLines.length; i++) {
+			const m = fmLines[i]?.match(/^tools:\s*(.*)$/);
+			if (!m) continue;
+			const rest = (m[1] ?? "").trim();
+			if (rest) {
+				tools = rest
+					.split(",")
+					.map((t) => t.trim())
+					.filter(Boolean);
+			} else {
+				const items: string[] = [];
+				for (let j = i + 1; j < fmLines.length; j++) {
+					const item = fmLines[j]?.match(/^\s*-\s+(.+)$/)?.[1]?.trim();
+					if (!item) break;
+					items.push(item);
+				}
+				if (items.length > 0) tools = items;
+			}
+			break;
+		}
+		const body = bodyLines.join("\n").trim() || undefined;
+		return { tools, body };
+	}
+
 	function persistOverride(tier: string, model: string) {
 		const p = join(getAgentDir(), "settings.json");
 		if (!existsSync(p)) return;
@@ -162,8 +220,11 @@ export default function (pi: ExtensionAPI) {
 			pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
 		}
 
-		if (mode.tools && mode.tools.length > 0) {
-			const valid = mode.tools.filter((t) => pi.getAllTools().some((x) => x.name === t));
+		// Explicit mode tools win; otherwise the tier's agent file frontmatter
+		// (<agentDir>/agents/<tier>.md) is the single source of truth.
+		const toolList = mode.tools && mode.tools.length > 0 ? mode.tools : readAgentFile(name).tools;
+		if (toolList && toolList.length > 0) {
+			const valid = toolList.filter((t) => pi.getAllTools().some((x) => x.name === t));
 			if (valid.length > 0) pi.setActiveTools(valid);
 		}
 
@@ -270,9 +331,17 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// Inject the active mode's instructions into the system prompt each turn.
+	// Explicit mode instructions win; otherwise the tier's agent file body
+	// (<agentDir>/agents/<tier>.md) is the single source of truth.
 	pi.on("before_agent_start", async (event) => {
-		if (active && modes[active]?.instructions) {
-			return { systemPrompt: `${event.systemPrompt}\n\n${modes[active].instructions}` };
+		if (!active) return;
+		const explicit = modes[active]?.instructions;
+		if (explicit) {
+			return { systemPrompt: `${event.systemPrompt}\n\n${explicit}` };
+		}
+		const { body } = readAgentFile(active);
+		if (body) {
+			return { systemPrompt: `${event.systemPrompt}\n\nYou are in ${active.toUpperCase()} mode.\n\n${body}` };
 		}
 	});
 

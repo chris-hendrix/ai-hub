@@ -36,63 +36,16 @@
   },
   "modes": {
     "deep": {
-      "model": "deep",
-      "tools": [
-        "read",
-        "grep",
-        "find",
-        "ls",
-        "bash",
-        "write",
-        "edit",
-        "subagent",
-        "web_search",
-        "fetch_content",
-        "get_search_content"
-      ],
-      "instructions": "You are in DEEP mode — high-thinking tier (expensive, use reasoning sparingly). Fan out to subagents for lesser work: recon/research to mid or fast, implementation to fast, images to view. Parallel fanout is encouraged for independent subtasks. Don't start coding before confirming the approach with the user. Only delegate down (mid, fast, view); never spawn another deep."
+      "model": "deep"
     },
     "mid": {
-      "model": "mid",
-      "tools": [
-        "read",
-        "grep",
-        "find",
-        "ls",
-        "bash",
-        "write",
-        "edit",
-        "subagent",
-        "web_search",
-        "fetch_content",
-        "get_search_content"
-      ],
-      "instructions": "You are in MID mode — medium tier. Fan out to fast for mechanical edits and lookups, view for images. Parallel fanout is encouraged. Only delegate down (fast, view); never mid or deep."
+      "model": "mid"
     },
     "fast": {
-      "model": "fast",
-      "tools": [
-        "read",
-        "grep",
-        "find",
-        "ls",
-        "bash",
-        "write",
-        "edit",
-        "subagent",
-        "web_search",
-        "fetch_content",
-        "get_search_content"
-      ],
-      "instructions": "You are in FAST mode — cheap workhorse. Do the work directly; fan out to parallel fast subagents for independent chunks and view for images. Parallel fanout is encouraged. Never delegate up (mid, deep)."
+      "model": "fast"
     },
     "view": {
-      "model": "view",
-      "tools": [
-        "read",
-        "ls"
-      ],
-      "instructions": "You are in VIEW mode — image analysis. Read images and report findings. Read-only; never edit or delegate."
+      "model": "view"
     }
   }
 }
