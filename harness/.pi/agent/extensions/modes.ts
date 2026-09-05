@@ -19,10 +19,10 @@
  *   Shift+Tab                   — cycle modes (vanilla → deep → mid → fast → view → vanilla)
  *   pi --preset <name>          — start in a mode
  *
- * Changing models while in a mode (via /model or Ctrl+P) persists the new
- * model as the default for that tier — it writes back to
- * subagents.agentOverrides.<tier>.model so both the mode and its subagents
- * use the new default next time.
+ * Changing the model or thinking level while in a mode (via /model, Ctrl+P, or
+ * /thinking) persists the new values as the defaults for that tier — it writes
+ * back to subagents.agentOverrides.<tier>.{model,thinking} so both the mode and
+ * its subagents use the new defaults next time.
  *
  * Shift+Tab cycles through vanilla (no mode) and all defined modes.
  * Vanilla = plain pi, no extra instructions, original tools/model restored.
@@ -104,6 +104,7 @@ export default function (pi: ExtensionAPI) {
 	let active: string | undefined;
 	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[]; thinking: string } | undefined;
 	let applyingModel = false;
+	let applyingThinking = false;
 
 	const refresh = (cwd: string) => {
 		const s = loadSettings(cwd);
@@ -176,7 +177,7 @@ export default function (pi: ExtensionAPI) {
 		return { tools, body };
 	}
 
-	function persistOverride(tier: string, model: string) {
+	function persistOverride(tier: string, patch: { model?: string; thinking?: string }) {
 		const p = join(getAgentDir(), "settings.json");
 		if (!existsSync(p)) return;
 		try {
@@ -184,7 +185,8 @@ export default function (pi: ExtensionAPI) {
 			const sub = ((raw.subagents as Record<string, unknown> | undefined) ?? (raw.subagents = {})) as Record<string, unknown>;
 			const ao = ((sub.agentOverrides as Record<string, unknown> | undefined) ?? (sub.agentOverrides = {})) as Record<string, Record<string, unknown>>;
 			const entry = ((ao[tier] as Record<string, unknown> | undefined) ?? (ao[tier] = {})) as Record<string, unknown>;
-			entry.model = model;
+			if (patch.model !== undefined) entry.model = patch.model;
+			if (patch.thinking !== undefined) entry.thinking = patch.thinking;
 			writeFileSync(p, JSON.stringify(raw, null, 2) + "\n");
 		} catch {
 			// best-effort; don't break the session on a write failure
@@ -217,7 +219,12 @@ export default function (pi: ExtensionAPI) {
 
 		const thinking = mode.thinkingLevel ?? (mode.model ? overrides[mode.model]?.thinking : undefined);
 		if (thinking) {
-			pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
+			applyingThinking = true;
+			try {
+				pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
+			} finally {
+				applyingThinking = false;
+			}
 		}
 
 		// Explicit mode tools win; otherwise the tier's agent file frontmatter
@@ -345,9 +352,9 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// Model persistence: changing models while in a tier mode updates that tier's
-	// default (agentOverrides.<tier>.model) so both the mode and its subagents
-	// use the new model next time.
+	// Model + thinking persistence: changing the model or thinking level while in a
+	// tier mode updates that tier's defaults (agentOverrides.<tier>.{model,thinking})
+	// so both the mode and its subagents use the new values next session.
 	pi.on("model_select", async (event, ctx) => {
 		if (!active || applyingModel) return;
 		const source = (event as { source?: string }).source;
@@ -357,7 +364,17 @@ export default function (pi: ExtensionAPI) {
 		const current = overrides[active]?.model;
 		if (!current || newSpec === current) return;
 		overrides[active] = { ...overrides[active], model: newSpec };
-		persistOverride(active, newSpec);
+		persistOverride(active, { model: newSpec });
 		ctx.ui.notify(`"${active}" default model updated: ${newSpec}`, "info");
+	});
+
+	pi.on("thinking_level_select", async (event, ctx) => {
+		if (!active || applyingThinking) return;
+		const level = (event as { level?: string }).level;
+		if (!level) return;
+		if (overrides[active]?.thinking === level) return;
+		overrides[active] = { ...overrides[active], thinking: level };
+		persistOverride(active, { thinking: level });
+		ctx.ui.notify(`"${active}" default thinking updated: ${level}`, "info");
 	});
 }
