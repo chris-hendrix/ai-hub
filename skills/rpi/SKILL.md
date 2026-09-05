@@ -31,7 +31,7 @@ research (optional) → plan → review → implement
 | `pickup` | `pickup [path to handoff]` | Resume work from a handoff document |
 | `implement all` | `implement all [plan path]` | Implement all phases from a plan |
 | `implement phase N` | `implement phase N [plan path]` | Implement a specific phase from a plan |
-| `write` | `write` | Save the most recent output to `.thoughts/` |
+| `write` | `rpi write --help` | Save the most recent output to `.thoughts/` — fully scripted; the LLM's only job is the title (`--topic`) |
 
 ## Doc Context
 
@@ -57,13 +57,13 @@ Parse the first word of the input as the keyword. For `implement`, parse `all` o
 | `implement` | [implementing](references/implementing.md) |
 | `handoff` | [handoff](references/handoff.md) |
 | `pickup` | [pickup](references/pickup.md) |
-| `write` | [writing-documentation](references/writing-documentation.md) |
+| `write` | `skills/rpi/scripts/rpi write` | Save the most recent output to `.thoughts/` |
 
-Document conventions follow [writing-documentation](references/writing-documentation.md).
+Document conventions are owned by the script — filenames (`timestamp[-ticket-]description`), frontmatter, subdirs.
 
 ## Writing Output
 
-Most workflows save nothing automatically. When the user says `write`, persist via `skills/rpi/scripts/rpi write --type <type> --topic "..."` — body on stdin (see [writing-documentation](references/writing-documentation.md) for types and subdirs). The `implement` workflow prompts at completion; `handoff` writes immediately. `research` never writes.
+Most workflows save nothing automatically. When the user says `write`, persist via `skills/rpi/scripts/rpi write --type <type> --topic "..."` — body on stdin; the script owns filename and frontmatter. `handoff` writes immediately; `research` never writes.
 
 ## Unknown or Missing Keyword
 
