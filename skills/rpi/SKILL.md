@@ -57,13 +57,13 @@ Parse the first word of the input as the keyword. For `implement`, parse `all` o
 | `implement` | [implementing](references/implementing.md) |
 | `handoff` | [handoff](references/handoff.md) |
 | `pickup` | [pickup](references/pickup.md) |
-| `write` | `skills/rpi/scripts/rpi write` | Save the most recent output to `.thoughts/` |
+| `write` | [writing](references/writing.md) |
 
-Document conventions are owned by the script — filenames (`timestamp[-ticket-]description`), frontmatter, subdirs.
+Document conventions are owned by the script — see [writing](references/writing.md).
 
 ## Writing Output
 
-Most workflows save nothing automatically. When the user says `write`, persist via `skills/rpi/scripts/rpi write --type <type> --topic "..."` — body on stdin; the script owns filename and frontmatter. If the last message is already the artifact, pass it through unchanged — don't regenerate. `handoff` writes immediately; `research` never writes.
+Most workflows save nothing automatically. When the user says `write`, see [writing](references/writing.md). `research` never writes.
 
 ## Unknown or Missing Keyword
 
