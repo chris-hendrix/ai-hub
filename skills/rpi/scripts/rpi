@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# rpi — deterministic helpers for the rpi skill
+# Usage:
+#   rpi write  --type {brainstorm|plan|evaluate|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
+#   rpi status <plan-file> <planned|in-progress|completed>
+#   rpi next   <plan-file>
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# repo root is two levels up from skills/rpi/scripts
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+kebab_case() {
+  local s="$1"
+  # lowercase, replace non-alnum with -, collapse, trim
+  echo "$s" | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
+}
+
+cmd_write() {
+  local type="" topic="" ticket="" status="" artifact=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --type)     type="$2"; shift 2 ;;
+      --topic)    topic="$2"; shift 2 ;;
+      --ticket)   ticket="$2"; shift 2 ;;
+      --status)   status="$2"; shift 2 ;;
+      --artifact) artifact="$2"; shift 2 ;;
+      -h|--help)  usage_write; exit 0 ;;
+      *) echo "rpi write: unknown option: $1" >&2; usage_write >&2; exit 1 ;;
+    esac
+  done
+
+  if [[ -z "$type" || -z "$topic" ]]; then
+    echo "rpi write: --type and --topic are required" >&2
+    usage_write >&2
+    exit 1
+  fi
+
+  local subdir front_status=""
+  case "$type" in
+    brainstorm)   subdir="brainstorms" ;;
+    plan)         subdir="plans"; front_status="${status:-planned}" ;;
+    evaluate)     subdir="evaluations" ;;
+    implement)    subdir="implementations" ;;
+    handoff)      subdir="handoffs"; front_status="${status:-handed-off}" ;;
+    *) echo "rpi write: unknown --type: $type (expected brainstorm|plan|evaluate|implement|handoff)" >&2; exit 1 ;;
+  esac
+
+  local date
+  date="$(date +%Y-%m-%d)"
+  local slug
+  slug="$(kebab_case "$topic")"
+  if [[ -z "$slug" ]]; then
+    echo "rpi write: topic produced empty slug" >&2; exit 1
+  fi
+
+  local filename
+  if [[ -n "$ticket" ]]; then
+    local ticket_slug
+    ticket_slug="$(kebab_case "$ticket")"
+    filename="${date}-${ticket_slug}-${slug}.md"
+  else
+    filename="${date}-${slug}.md"
+  fi
+
+  local body
+  body="$(cat)"
+
+  local outdir="${REPO_ROOT}/.thoughts/${subdir}"
+  mkdir -p "$outdir"
+  local outpath="${outdir}/${filename}"
+
+  {
+    echo "---"
+    echo "date: ${date}"
+    echo "topic: ${topic}"
+    if [[ -n "$ticket" ]]; then
+      echo "ticket: ${ticket}"
+    fi
+    if [[ -n "$artifact" ]]; then
+      echo "artifact: ${artifact}"
+    fi
+    if [[ -n "$front_status" ]]; then
+      echo "status: ${front_status}"
+    fi
+    echo "---"
+    echo ""
+    printf "%s" "$body"
+    # ensure trailing newline
+    if [[ -n "$body" && "${body: -1}" != $'\n' ]]; then
+      echo ""
+    fi
+  } > "$outpath"
+
+  echo "$outpath"
+}
+
+cmd_status() {
+  if [[ $# -ne 2 ]]; then
+    echo "Usage: rpi status <plan-file> <planned|in-progress|completed|handed-off>" >&2
+    exit 1
+  fi
+  local file="$1" new_status="$2"
+  # resolve relative to repo root if not absolute
+  if [[ "$file" != /* ]]; then
+    file="${REPO_ROOT}/${file#.}"
+    # handle leading ./ or bare relative
+    file="$(realpath -m "$file" 2>/dev/null || echo "$file")"
+    # fallback: try as given relative to repo
+    if [[ ! -f "$file" ]]; then
+      file="${REPO_ROOT}/${1}"
+    fi
+  fi
+  if [[ ! -f "$file" ]]; then
+    echo "rpi status: file not found: $1" >&2; exit 1
+  fi
+  # replace the status: line in frontmatter (first occurrence between --- markers)
+  # use a Python one-liner for reliable YAML frontmatter handling would be overkill;
+  # simple sed for the first status: line is sufficient for our frontmatter shape
+  local tmp
+  tmp="$(mktemp)"
+  # only replace inside frontmatter (between first two --- lines)
+  awk -v ns="$new_status" '
+    BEGIN { in_fm=0; fm_count=0; replaced=0 }
+    /^---[[:space:]]*$/ {
+      fm_count++
+      if (fm_count==1) in_fm=1
+      else if (fm_count==2) in_fm=0
+      print; next
+    }
+    in_fm && !replaced && /^status:/ {
+      print "status: " ns
+      replaced=1
+      next
+    }
+    { print }
+    END {
+      if (!replaced) {
+        # no status line in frontmatter — insert before closing ---
+        # re-read and insert: simplest is to do a second pass if needed
+        # but for now, warn
+      }
+    }
+  ' "$file" > "$tmp"
+  # if no status line was replaced, insert it before the closing ---
+  if ! grep -q "^status: ${new_status}$" "$tmp"; then
+    awk -v ns="$new_status" '
+      BEGIN { fm_count=0 }
+      /^---[[:space:]]*$/ {
+        fm_count++
+        if (fm_count==2 && !done) {
+          print "status: " ns
+          done=1
+        }
+        print; next
+      }
+      { print }
+    ' "$tmp" > "${tmp}.2" && mv "${tmp}.2" "$tmp"
+  fi
+  mv "$tmp" "$file"
+  echo "$file -> status: $new_status"
+}
+
+cmd_next() {
+  if [[ $# -ne 1 ]]; then
+    echo "Usage: rpi next <plan-file>" >&2; exit 1
+  fi
+  local file="$1"
+  if [[ "$file" != /* ]]; then
+    if [[ ! -f "$file" ]]; then
+      file="${REPO_ROOT}/${1}"
+    fi
+  fi
+  if [[ ! -f "$file" ]]; then
+    echo "rpi next: file not found: $1" >&2; exit 1
+  fi
+  local line
+  line="$(grep -m1 '^- \[ \]' "$file" || true)"
+  if [[ -n "$line" ]]; then
+    echo "$line"
+  else
+    echo "(all done)"
+  fi
+}
+
+usage() {
+  cat <<'USAGE'
+rpi — deterministic helpers for the rpi skill
+
+Usage:
+  rpi write  --type {brainstorm|plan|evaluate|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
+  rpi status <plan-file> <planned|in-progress|completed|handed-off>
+  rpi next   <plan-file>
+
+Examples:
+  printf '# My plan\n...' | rpi write --type plan --topic "Auth refactor"
+  rpi status .thoughts/plans/2026-08-30-auth-refactor.md in-progress
+  rpi next .thoughts/plans/2026-08-30-auth-refactor.md
+USAGE
+}
+
+usage_write() {
+  cat <<'USAGE'
+rpi write — create a .thoughts document with deterministic frontmatter
+
+  --type     one of: brainstorm, plan, evaluate, implement, handoff  (required)
+  --topic    human-readable topic, used for frontmatter and filename  (required)
+  --ticket   optional ticket/issue id, included in filename and frontmatter
+  --status   override frontmatter status (plan→planned, handoff→handed-off by default)
+  --artifact artifact path for evaluations (frontmatter artifact field)
+  Body read from stdin.
+
+Writes to .thoughts/<subdir>/YYYY-MM-DD-[ticket-]kebab-topic.md and prints the path.
+USAGE
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then usage >&2; exit 1; fi
+  local cmd="$1"; shift
+  case "$cmd" in
+    write)  cmd_write "$@" ;;
+    status) cmd_status "$@" ;;
+    next)   cmd_next "$@" ;;
+    -h|--help|help) usage; exit 0 ;;
+    *) echo "rpi: unknown subcommand: $cmd" >&2; usage >&2; exit 1 ;;
+  esac
+}
+
+main "$@"

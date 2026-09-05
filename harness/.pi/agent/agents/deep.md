@@ -1,6 +1,6 @@
 ---
 name: deep
-description: Subagent for complex tasks — implementation, debugging, architecture, code review
+description: Trusted advisor — architecture decisions, design trade-offs, code review, second opinions. Use rarely; not for routine implementation.
 tools: read, edit, write, grep, find, ls, bash, web_search, fetch_content, get_search_content
 inheritProjectContext: true
 ---
