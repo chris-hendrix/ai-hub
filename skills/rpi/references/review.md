@@ -12,3 +12,5 @@ Review against these dimensions:
 - **Sequencing** — tasks runnable in order; dependencies hold.
 
 Read the relevant code before claiming something doesn't match it.
+
+When subagents are available, run the review in one — a reviewer without the author's conversation history judges the plan on its own terms. Otherwise, review from the plan document alone, deliberately ignoring the session's context.
