@@ -6,7 +6,7 @@ The script owns everything mechanical: filename (`timestamp[-ticket-]title`), fr
 
 | `--type` | Subdir |
 |----------|--------|
-| `plan` | `.thoughts/plans/` |
-| `review` | `.thoughts/reviews/` |
-| `implement` | `.thoughts/implementations/` |
-| `handoff` | `.thoughts/handoffs/` — writes immediately; chain of past session ids is maintained automatically |
+| `plan` | `.rpi/plans/` |
+| `review` | `.rpi/reviews/` |
+| `implement` | `.rpi/implementations/` |
+| `handoff` | `.rpi/handoffs/` — writes immediately; chain of past session ids is maintained automatically |

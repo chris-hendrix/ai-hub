@@ -57,7 +57,7 @@ cmd_write() {
   # handoff session chain: inherit from newest existing handoff, append current session
   local session_chain=""
   if [[ "$type" == "handoff" ]]; then
-    local hdir="${REPO_ROOT}/.thoughts/handoffs"
+    local hdir="${REPO_ROOT}/.rpi/handoffs"
     local newest
     newest="$(ls -1 "$hdir" 2>/dev/null | sort -r | head -1 || true)"
     if [[ -n "$newest" ]]; then
@@ -86,7 +86,7 @@ $sid"
   local body
   body="$(cat)"
 
-  local outdir="${REPO_ROOT}/.thoughts/${subdir}"
+  local outdir="${REPO_ROOT}/.rpi/${subdir}"
   mkdir -p "$outdir"
   local outpath="${outdir}/${filename}"
 
@@ -241,7 +241,7 @@ cmd_pickup() {
     esac
   done
   if [[ "$list" -eq 1 ]]; then
-    local dir="${REPO_ROOT}/.thoughts/handoffs"
+    local dir="${REPO_ROOT}/.rpi/handoffs"
     if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
       echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
     fi
@@ -249,7 +249,7 @@ cmd_pickup() {
     return
   fi
   if [[ -z "$file" ]]; then
-    local dir="${REPO_ROOT}/.thoughts/handoffs"
+    local dir="${REPO_ROOT}/.rpi/handoffs"
     if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
       echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
     fi
@@ -275,23 +275,23 @@ Usage:
 
 Examples:
   printf '# My plan\n...' | rpi write --type plan --topic "Auth refactor"
-  rpi status .thoughts/plans/2026-08-30-auth-refactor.md in-progress
-  rpi next .thoughts/plans/2026-08-30-auth-refactor.md
-  rpi done .thoughts/plans/2026-08-30-auth-refactor.md 2
-  rpi pickup .thoughts/handoffs/2026-05-24-auth-refactor.md
+  rpi status .rpi/plans/2026-08-30-auth-refactor.md in-progress
+  rpi next .rpi/plans/2026-08-30-auth-refactor.md
+  rpi done .rpi/plans/2026-08-30-auth-refactor.md 2
+  rpi pickup .rpi/handoffs/2026-05-24-auth-refactor.md
 USAGE
 }
 
 usage_write() {
   cat <<'USAGE'
-rpi write — create a .thoughts document with deterministic frontmatter
+rpi write — create a .rpi document with deterministic frontmatter
 
   --type     one of: plan, review, implement, handoff  (required)
   --topic    human-readable topic, used for frontmatter and filename (required — a short generated title)
   --ticket   optional ticket/issue id, included in filename and frontmatter
   --status   override frontmatter status (plan→planned, handoff→handed-off by default)
 
-Writes to .thoughts/<subdir>/YYYY-MM-DD-[ticket-]kebab-topic.md and prints the path.
+Writes to .rpi/<subdir>/YYYY-MM-DD-[ticket-]kebab-topic.md and prints the path.
 USAGE
 }
 

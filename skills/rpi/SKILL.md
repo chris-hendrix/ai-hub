@@ -1,11 +1,11 @@
 ---
 name: rpi
-description: "Consolidated research-plan-review-implement workflow. Use when the user wants to research or explore solutions, create an implementation plan, review a plan or artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .thoughts/, or grill a plan/design through relentless interviewing. Keywords: research, plan, review, implement, handoff, pickup, write, grill."
+description: "Consolidated research-plan-review-implement workflow. Use when the user wants to research or explore solutions, create an implementation plan, review a plan or artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .rpi/, or grill a plan/design through relentless interviewing. Keywords: research, plan, review, implement, handoff, pickup, write, grill."
 ---
 
 # rpi — Research, Plan, Review, Implement
 
-Parse the first word of the input as the keyword (`implement all [plan]` / `implement phase N [plan]` is the shape there). Any keyword accepts a path to a `.thoughts/` document as context; `implement` with no path uses the most recent `.thoughts/plans/*.md` (confirm with the user). Unknown or missing keyword → show the table and ask.
+Parse the first word of the input as the keyword (`implement all [plan]` / `implement phase N [plan]` is the shape there). Any keyword accepts a path to a `.rpi/` document as context; `implement` with no path uses the most recent `.rpi/plans/*.md` (confirm with the user). Unknown or missing keyword → show the table and ask.
 
 | Keyword | Reference |
 |---------|-----------|
