@@ -18,7 +18,7 @@ ai-hub/
 │       └── agent/
 │           ├── settings.json   # tracked (modes, agentOverrides, defaultProvider)
 │           ├── agents/         # tracked tier agents: deep/mid/fast/view (*.md = single source)
-│           ├── extensions/     # tracked (modes.ts = tier modes)
+│           ├── extensions/     # tracked (modes.ts = tier modes; subagent-status.ts = footer status)
 │           └── skills/         # gitignored — reinstall per-skill via `npx skills add <name> --agent pi`
 ├── skills/rpi/             # opencode skill source of truth (pi will get its own rpi extension separately)
 ├── .env.example            # required env vars (CONTEXT7_API_KEY, etc.)
