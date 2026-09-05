@@ -2,6 +2,7 @@
 name: deep
 description: High-thinking advisor/planner — fan out lesser work down to mid/fast/view. Never spawn another deep.
 tools: read, edit, write, grep, find, ls, bash, subagent, web_search, fetch_content, get_search_content
+subagentOnlyExtensions: ../npm/node_modules/pi-web-access/index.ts
 inheritProjectContext: true
 ---
 
