@@ -4,8 +4,6 @@ Plans are persistent, self-sufficient documents — all context needed to implem
 
 **No code is written during planning** — implementation belongs to `implement`.
 
-Save via `skills/rpi/scripts/rpi write --type plan --topic "..."` — frontmatter and filename are handled by the script (see [writing-documentation](./writing-documentation.md)).
-
 ## Process
 
 1. **Context gathering** — read the codebase fully first (and the web where current best practice matters). Include `file:line` references.
