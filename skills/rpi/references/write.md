@@ -4,9 +4,9 @@ Persist via `skills/rpi/scripts/rpi write <subdir> --topic "<title>"` — body o
 
 The script owns everything mechanical: filename (`timestamp[-ticket-]title`), frontmatter, and subdirs. Frontmatter varies by type — `status` only for plans (`planned`) and handoffs (`handed-off`); `sessions` chain only for handoffs. Flags: `--ticket`, `--status`.
 
-| `--type` | Subdir |
-|----------|--------|
-| `plan` | `.rpi/plans/` |
-| `review` | `.rpi/reviews/` |
-| `implement` | `.rpi/implementations/` |
-| `handoff` | `.rpi/handoffs/` — writes immediately; chain of past session ids is maintained automatically |
+| Subdir | Notes |
+|--------|-------|
+| `plans` | frontmatter `status: planned` |
+| `reviews` | |
+| `implementations` | |
+| `handoffs` | frontmatter `status: handed-off`; `sessions` chain maintained automatically |

@@ -10,8 +10,9 @@ set -euo pipefail
 #   rpi pickup [path] [--list]        # resolve a handoff: latest, or given path
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# repo root is three levels up from skills/rpi/scripts
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# docs live in .rpi/ at the root of whatever repo we're invoked from
+dr="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
+REPO_ROOT="$dr"
 
 rel() { echo "${1#"$REPO_ROOT"/}"; }
 
