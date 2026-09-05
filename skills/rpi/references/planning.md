@@ -43,13 +43,13 @@ Save via `skills/rpi/scripts/rpi write --type plan --topic "..."` — frontmatte
 
 ### Tracking (End)
 
-**Tracked Changes** — Significant deviations with rationale. **References** — tickets, brainstorms, similar code.
+**Tracked Changes** — Significant deviations with rationale. **References** — tickets, prior docs, similar code.
 
 ## Planning Process
 
 ### 1. Context Gathering
 
-Research the codebase deeply (see [researching-codebase](./researching-codebase.md)). Read files fully, include `file:line` references, identify patterns.
+Research the codebase (and web, where current best practices matter) deeply. Read files fully, include `file:line` references, identify patterns.
 
 ### 2. Deep-Dive Alignment (90% Confidence Gate)
 
@@ -117,5 +117,5 @@ Body for `rpi write --type plan --topic "..."` (frontmatter/filename handled by 
 > Record significant deviations.
 
 ## References
-- Related brainstorm: [path] · Similar impl: `file:line`
+- Related docs: [path] · Similar impl: `file:line`
 ```

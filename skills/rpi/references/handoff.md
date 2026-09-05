@@ -8,7 +8,7 @@ Two workflows: writing a handoff for another agent, and picking up a handoff to 
 
 Invoked via `rpi handoff [description]`.
 
-Unlike `brainstorm` / `plan` / `evaluate`, this **always writes immediately** (via `scripts/rpi write --type handoff`).
+Unlike `plan` / `evaluate`, this **always writes immediately** (via `scripts/rpi write --type handoff`).
 
 ### Document Content
 

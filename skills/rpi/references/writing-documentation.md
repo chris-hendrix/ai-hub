@@ -7,13 +7,12 @@ printf '%s' "$BODY" | skills/rpi/scripts/rpi write --type <type> --topic "..." [
 ```
 
 The script picks the date, subdir, filename, and frontmatter. See `rpi --help` for `--status`/`--artifact` overrides. For workflow-specific structures, see:
-- [brainstorming](./brainstorming.md) · [planning](./planning.md) · [evaluating](./evaluating.md) · [handoff](./handoff.md)
+- [planning](./planning.md) · [evaluating](./evaluating.md) · [handoff](./handoff.md)
 
 ## Subdirectories
 
 | `write --type` | Subdir |
 |----------------|--------|
-| `brainstorm` | `.thoughts/brainstorms/` |
 | `plan` | `.thoughts/plans/` |
 | `evaluate` | `.thoughts/evaluations/` |
 | `implement` | `.thoughts/implementations/` |
