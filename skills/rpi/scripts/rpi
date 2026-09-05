@@ -5,7 +5,8 @@ set -euo pipefail
 # Usage:
 #   rpi write  --type {plan|evaluate|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
 #   rpi status <plan-file> <planned|in-progress|completed>
-#   rpi next   <plan-file>
+#   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
+#   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # repo root is two levels up from skills/rpi/scripts
@@ -167,22 +168,47 @@ cmd_next() {
   if [[ $# -ne 1 ]]; then
     echo "Usage: rpi next <plan-file>" >&2; exit 1
   fi
-  local file="$1"
-  if [[ "$file" != /* ]]; then
-    if [[ ! -f "$file" ]]; then
-      file="${REPO_ROOT}/${1}"
-    fi
-  fi
-  if [[ ! -f "$file" ]]; then
-    echo "rpi next: file not found: $1" >&2; exit 1
-  fi
-  local line
-  line="$(grep -m1 '^- \[ \]' "$file" || true)"
-  if [[ -n "$line" ]]; then
-    echo "$line"
-  else
+  local file; file="$(resolve_plan "$1")"
+  # print the first unchecked task with its body (indented follow-on lines)
+  awk '
+    /^- \[ \] / { if (found) exit; found=1; print; next }
+    found && /^[[:space:]]+[^[:space:]]/ { print; next }
+    found { exit }
+  ' "$file"
+  if ! grep -q '^- \[ \]' "$file"; then
     echo "(all done)"
   fi
+}
+
+cmd_done() {
+  if [[ $# -ne 2 ]]; then
+    echo "Usage: rpi done <plan-file> <task-id>" >&2; exit 1
+  fi
+  local file; file="$(resolve_plan "$1")"
+  local task_id="$2"
+  if ! grep -Eq "^- \[ \] .*(\*\*)?[Tt]ask ${task_id}([:.]|$)" "$file"; then
+    echo "rpi done: no unchecked Task ${task_id} found in $file" >&2; exit 1
+  fi
+  local tmp; tmp="$(mktemp)"
+  awk -v tid="$task_id" '
+    !done && /^- \[ \] / && $0 ~ "([*][*])?[Tt]ask " tid "([:.]|$)" {
+      sub(/^- \[ \] /, "- [x] ")
+      done=1
+    }
+    { print }
+  ' "$file" > "$tmp" && mv "$tmp" "$file"
+  echo "Task ${task_id} marked complete in $file"
+}
+
+resolve_plan() {
+  local file="$1"
+  if [[ "$file" != /* && ! -f "$file" ]]; then
+    file="${REPO_ROOT}/${file}"
+  fi
+  if [[ ! -f "$file" ]]; then
+    echo "rpi: plan file not found: $1" >&2; exit 1
+  fi
+  echo "$file"
 }
 
 usage() {
@@ -192,12 +218,14 @@ rpi — deterministic helpers for the rpi skill
 Usage:
   rpi write  --type {plan|evaluate|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
   rpi status <plan-file> <planned|in-progress|completed|handed-off>
-  rpi next   <plan-file>
+  rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
+  rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
 
 Examples:
   printf '# My plan\n...' | rpi write --type plan --topic "Auth refactor"
   rpi status .thoughts/plans/2026-08-30-auth-refactor.md in-progress
   rpi next .thoughts/plans/2026-08-30-auth-refactor.md
+  rpi done .thoughts/plans/2026-08-30-auth-refactor.md 2
 USAGE
 }
 
@@ -223,6 +251,7 @@ main() {
     write)  cmd_write "$@" ;;
     status) cmd_status "$@" ;;
     next)   cmd_next "$@" ;;
+    done)   cmd_done "$@" ;;
     -h|--help|help) usage; exit 0 ;;
     *) echo "rpi: unknown subcommand: $cmd" >&2; usage >&2; exit 1 ;;
   esac
