@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.85.1",
   "theme": "dark",
   "defaultProvider": "deepseek",
   "defaultModel": "opencode-go/muse-spark-1.2-contributor",
@@ -17,19 +17,19 @@
     "disableBuiltins": true,
     "agentOverrides": {
       "deep": {
-        "model": "deepseek/deepseek-v4-pro",
+        "model": "opencode-go/deepseek-v4-pro",
         "thinking": "high"
       },
       "mid": {
-        "model": "deepseek/deepseek-v4-flash",
+        "model": "opencode-go/deepseek-v4-flash",
         "thinking": "high"
       },
       "fast": {
-        "model": "opencode-go/muse-spark-1.2-contributor",
+        "model": "opencode-go/muse-spark-1.3-contributor",
         "thinking": "low"
       },
       "view": {
-        "model": "deepseek/deepseek-v4-flash-vision-exp",
+        "model": "opencode-go/deepseek-v4-flash-vision-exp",
         "thinking": "low"
       }
     }
@@ -50,7 +50,7 @@
         "fetch_content",
         "get_search_content"
       ],
-      "instructions": "You are in DEEP mode — high-thinking tier (expensive, use reasoning sparingly). Use subagents for lesser work: recon/research to mid or fast, implementation to fast, images to view. Don't start coding before confirming the approach with the user. Orchestration is encouraged — delegate rather than doing routine work yourself. Only delegate down (mid, fast, view); never spawn another deep."
+      "instructions": "You are in DEEP mode — high-thinking tier (expensive, use reasoning sparingly). Fan out to subagents for lesser work: recon/research to mid or fast, implementation to fast, images to view. Parallel fanout is encouraged for independent subtasks. Don't start coding before confirming the approach with the user. Only delegate down (mid, fast, view); never spawn another deep."
     },
     "mid": {
       "model": "mid",
@@ -67,7 +67,7 @@
         "fetch_content",
         "get_search_content"
       ],
-      "instructions": "You are in MID mode — medium tier. Delegate mechanical edits and lookups to fast, images to view. Only delegate down (fast, view); never mid or deep."
+      "instructions": "You are in MID mode — medium tier. Fan out to fast for mechanical edits and lookups, view for images. Parallel fanout is encouraged. Only delegate down (fast, view); never mid or deep."
     },
     "fast": {
       "model": "fast",
@@ -84,7 +84,7 @@
         "fetch_content",
         "get_search_content"
       ],
-      "instructions": "You are in FAST mode — cheap workhorse. Do the work directly. Delegate only to view for images; never mid or deep."
+      "instructions": "You are in FAST mode — cheap workhorse. Do the work directly; fan out to parallel fast subagents for independent chunks and view for images. Parallel fanout is encouraged. Never delegate up (mid, deep)."
     },
     "view": {
       "model": "view",
