@@ -1,6 +1,6 @@
 # Implement
 
-Execute a plan's checklist (`rpi implement all <plan>` / `implement phase N <plan>`).
+Execute a plan's checklist. `implement all <plan>` is the default; name a phase only to resume or rerun a specific one. The orchestrator owns git: create the branch per the plan's Branch & Commit Strategy and commit after each verified task — subagents never touch git.
 
 Loop, per task:
 
