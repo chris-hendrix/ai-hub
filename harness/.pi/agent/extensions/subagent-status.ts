@@ -3,7 +3,7 @@
  *
  * Polls the installed pi-subagents package via its in-process RPC `status`
  * method and reads the fleet DTO's active count, then writes a single footer
- * segment (`⧉ 2`). Detail lives in chat (async panels) and FleetView; the
+ * segment (`⧉ 2 subagents`). Detail lives in chat (async panels) and FleetView; the
  * footer is just a persistent glanceable count. Clears when idle.
  */
 
@@ -32,7 +32,7 @@ export default function (pi: ExtensionAPI) {
 			ctx.ui.setStatus("subagents", undefined);
 			return;
 		}
-		ctx.ui.setStatus("subagents", `⧉ ${total}`);
+		ctx.ui.setStatus("subagents", `⧉ ${total} subagent${total === 1 ? "" : "s"}`);
 	}
 
 	function poll(ctx: ExtensionContext) {
