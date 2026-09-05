@@ -3,7 +3,7 @@ set -euo pipefail
 
 # rpi — deterministic helpers for the rpi skill
 # Usage:
-#   rpi write  --type {plan|evaluate|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
+#   rpi write  --type {plan|review|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
 #   rpi status <plan-file> <planned|in-progress|completed>
 #   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
 #   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
@@ -43,10 +43,10 @@ cmd_write() {
   case "$type" in
     
     plan)         subdir="plans"; front_status="${status:-planned}" ;;
-    evaluate)     subdir="evaluations" ;;
+    review)      subdir="reviews" ;;
     implement)    subdir="implementations" ;;
     handoff)      subdir="handoffs"; front_status="${status:-handed-off}" ;;
-    *) echo "rpi write: unknown --type: $type (expected plan|evaluate|implement|handoff)" >&2; exit 1 ;;
+    *) echo "rpi write: unknown --type: $type (expected plan|review|implement|handoff)" >&2; exit 1 ;;
   esac
 
   local date
@@ -216,7 +216,7 @@ usage() {
 rpi — deterministic helpers for the rpi skill
 
 Usage:
-  rpi write  --type {plan|evaluate|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
+  rpi write  --type {plan|review|implement|handoff} --topic "..." [--ticket N] [--status X] [--artifact X]  # body on stdin
   rpi status <plan-file> <planned|in-progress|completed|handed-off>
   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
@@ -233,7 +233,7 @@ usage_write() {
   cat <<'USAGE'
 rpi write — create a .thoughts document with deterministic frontmatter
 
-  --type     one of: plan, evaluate, implement, handoff  (required)
+  --type     one of: plan, review, implement, handoff  (required)
   --topic    human-readable topic, used for frontmatter and filename  (required)
   --ticket   optional ticket/issue id, included in filename and frontmatter
   --status   override frontmatter status (plan→planned, handoff→handed-off by default)

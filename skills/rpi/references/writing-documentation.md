@@ -14,6 +14,6 @@ The script picks the date, subdir, filename, and frontmatter. See `rpi --help` f
 | `write --type` | Subdir |
 |----------------|--------|
 | `plan` | `.thoughts/plans/` |
-| `evaluate` | `.thoughts/evaluations/` |
+| `review` | `.thoughts/reviews/` |
 | `implement` | `.thoughts/implementations/` |
 | `handoff` | `.thoughts/handoffs/` |

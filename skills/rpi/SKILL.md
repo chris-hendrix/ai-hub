@@ -1,21 +1,21 @@
 ---
 name: rpi
-description: "Consolidated research-plan-evaluate-implement workflow. Use when the user wants to research or explore solutions, create an implementation plan, evaluate an artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .thoughts/, or grill a plan/design through relentless interviewing. Keywords: research, plan, evaluate, implement, handoff, pickup, write, grill."
+description: "Consolidated research-plan-review-implement workflow. Use when the user wants to research or explore solutions, create an implementation plan, review a plan or artifact, implement from a plan, hand off work to another session, pick up a handoff, write output to .thoughts/, or grill a plan/design through relentless interviewing. Keywords: research, plan, review, implement, handoff, pickup, write, grill."
 ---
 
 # rpi — Research, Plan, Evaluate, Implement
 
-Unified entry point for the research-plan-evaluate-implement workflow.
+Unified entry point for the research-plan-review-implement workflow.
 
 ## Workflow
 
 ```
-research (optional) → plan → evaluate → implement
+research (optional) → plan → review → implement
 ```
 
 - **research** — explore solutions with the user. Dialogue mode: establish the problem and what good looks like, then explore code/web together. Nothing is written. Optional — skip for simple changes.
 - **plan** — TDD-structured implementation plan with RED/GREEN/CHECK tasks. Researches the codebase and web as needed. Includes branch & commit strategy.
-- **evaluate** — assess artifacts across quality dimensions with concrete upgrade paths.
+- **review** — review a plan (or any artifact) against explicit dimensions; report a list of findings.
 - **grill** — interview the user relentlessly about a plan or design, walking every branch of the decision tree until reaching shared understanding. Interstitial — usable at any phase.
 - **implement** — execute a plan phase by phase through vertical RED/GREEN cycles.
 
@@ -25,7 +25,7 @@ research (optional) → plan → evaluate → implement
 |---------|--------|--------------|
 | `research` | `research <topic>` | Explore solutions collaboratively (optional — skip for simple changes) |
 | `plan` | `plan <description or .thoughts doc path>` | Create a TDD-structured implementation plan |
-| `evaluate` | `evaluate <description>` | Evaluate an artifact across multiple quality dimensions with scoring and upgrade paths |
+| `review` | `review <plan or artifact>` | Review a plan/artifact against explicit dimensions; report findings |
 | `grill` | `grill <topic>` | Interview the user relentlessly about a plan or design, walking the decision tree |
 | `handoff` | `handoff [description of next session]` | Summarize the current conversation into a handoff doc for another agent |
 | `pickup` | `pickup [path to handoff]` | Resume work from a handoff document |
@@ -38,7 +38,7 @@ research (optional) → plan → evaluate → implement
 Any keyword can accept a path to an existing `.thoughts/` document as context:
 
 - `plan .thoughts/plans/2026-04-25-my-plan.md` — plan from an existing doc
-- `evaluate .thoughts/plans/2026-04-25-my-plan.md` — evaluate a plan
+- `review .thoughts/plans/2026-04-25-my-plan.md` — review a plan
 - `implement all .thoughts/plans/2026-04-25-my-plan.md` — implement from a specific plan
 - `pickup .thoughts/handoffs/2026-05-24-auth-refactor.md` — resume from a specific handoff
 
@@ -52,7 +52,7 @@ Parse the first word of the input as the keyword. For `implement`, parse `all` o
 |---------|-----------|
 | `research` | [researching](references/researching.md) |
 | `plan` | [planning](references/planning.md) |
-| `evaluate` | [evaluating](references/evaluating.md) |
+| `review` | [review](references/review.md) |
 | `grill` | [grilling](references/grilling.md) |
 | `implement` | [implementing](references/implementing.md) |
 | `handoff` | [handoff](references/handoff.md) |
