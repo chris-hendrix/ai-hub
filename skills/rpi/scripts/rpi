@@ -3,15 +3,17 @@ set -euo pipefail
 
 # rpi — deterministic helpers for the rpi skill
 # Usage:
-#   rpi write  --type {plan|review|implement|handoff} --topic "..." [--ticket N]  # body on stdin
+#   rpi write  <plans|reviews|implementations|handoffs> --topic "..." [--ticket N]  # body on stdin
 #   rpi status <plan-file> <planned|in-progress|completed>
 #   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
 #   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
 #   rpi pickup [path] [--list]        # resolve a handoff: latest, or given path
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# repo root is two levels up from skills/rpi/scripts
+# repo root is three levels up from skills/rpi/scripts
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+rel() { echo "${1#"$REPO_ROOT"/}"; }
 
 kebab_case() {
   local s="$1"
@@ -21,10 +23,11 @@ kebab_case() {
 }
 
 cmd_write() {
-  local type="" topic="" ticket="" status=""
+  local subdir="" topic="" ticket="" status=""
+  # first positional arg is the subdir: plans|reviews|implementations|handoffs
+  if [[ "$1" != -* && -n "$1" ]]; then subdir="$1"; shift; fi
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --type)     type="$2"; shift 2 ;;
       --topic)    topic="$2"; shift 2 ;;
       --ticket)   ticket="$2"; shift 2 ;;
       --status)   status="$2"; shift 2 ;;
@@ -33,26 +36,28 @@ cmd_write() {
     esac
   done
 
-  if [[ -z "$type" || -z "$topic" ]]; then
-    echo "rpi write: --type and --topic are required" >&2
+  if [[ -z "$subdir" || -z "$topic" ]]; then
+    echo "rpi write: subdir and --topic are required" >&2
     usage_write >&2
     exit 1
   fi
 
-  local subdir front_status=""
-  case "$type" in
-    
-    plan)         subdir="plans"; front_status="${status:-planned}" ;;
-    review)      subdir="reviews" ;;
-    implement)    subdir="implementations" ;;
-    handoff)      subdir="handoffs"; front_status="${status:-handed-off}" ;;
-    *) echo "rpi write: unknown --type: $type (expected plan|review|implement|handoff)" >&2; exit 1 ;;
+  local type="${subdir%s}"  # singular type for frontmatter
+  local front_status=""
+  case "$subdir" in
+    plans)          front_status="${status:-planned}" ;;
+    handoffs)       front_status="${status:-handed-off}" ;;
+    reviews|implementations) ;;
+    *) echo "rpi write: unknown subdir: $subdir (expected plans|reviews|implementations|handoffs)" >&2; exit 1 ;;
   esac
 
   local date
   date="$(date +%Y-%m-%d)"
   local slug
   slug="$(kebab_case "$topic")"
+  if [[ -z "$slug" ]]; then
+    echo "rpi write: topic produced empty slug: $topic" >&2; exit 1
+  fi
 
   # handoff session chain: inherit from newest existing handoff, append current session
   local session_chain=""
@@ -89,6 +94,12 @@ $sid"
   local outdir="${REPO_ROOT}/.rpi/${subdir}"
   mkdir -p "$outdir"
   local outpath="${outdir}/${filename}"
+  # avoid silent overwrite on same-second collisions
+  local n=2
+  while [[ -e "$outpath" ]]; do
+    outpath="${outdir}/${filename%.md}-${n}.md"
+    n=$((n+1))
+  done
 
   {
     echo "---"
@@ -116,7 +127,7 @@ $sid"
     fi
   } > "$outpath"
 
-  echo "$outpath"
+  rel "$outpath"
 }
 
 cmd_status() {
@@ -193,8 +204,9 @@ cmd_next() {
   # print the first unchecked task with its body (indented follow-on lines)
   awk '
     /^- \[ \] / { if (found) exit; found=1; print; next }
-    found && /^[[:space:]]+[^[:space:]]/ { print; next }
-    found { exit }
+    found && /^$/ { print; next }
+    found && /^[^[:space:]]/ { exit }
+    found { print }
   ' "$file"
   if ! grep -q '^- \[ \]' "$file"; then
     echo "(all done)"
@@ -245,7 +257,7 @@ cmd_pickup() {
     if [[ ! -d "$dir" ]] || [[ -z "$(ls -A "$dir" 2>/dev/null)" ]]; then
       echo "rpi pickup: no handoffs in ${dir}" >&2; exit 1
     fi
-    ls -1 "$dir" | sort -r | sed "s|^|$dir/|"
+    ls -1 "$dir" | sort -r | sed "s|^|.rpi/handoffs/|"
     return
   fi
   if [[ -z "$file" ]]; then
@@ -258,7 +270,7 @@ cmd_pickup() {
     file="$(resolve_plan "$file")"
   fi
   # inject: path header + full content
-  echo "# handoff: $file"
+  echo "# handoff: $(rel "$file")"
   echo
   cat "$file"
 }
@@ -274,7 +286,7 @@ Usage:
   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
 
 Examples:
-  printf '# My plan\n...' | rpi write --type plan --topic "Auth refactor"
+  printf '# My plan\n...' | rpi write plans --topic "Auth refactor"
   rpi status .rpi/plans/2026-08-30-auth-refactor.md in-progress
   rpi next .rpi/plans/2026-08-30-auth-refactor.md
   rpi done .rpi/plans/2026-08-30-auth-refactor.md 2
