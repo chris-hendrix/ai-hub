@@ -2,8 +2,8 @@
  * Modes extension — tier personas (deep / mid / fast / view).
  *
  * Modes are derived from tiers: every subagents.agentOverrides.<tier> entry
- * with a matching <agentDir>/agents/<tier>.md file automatically becomes a
- * /<tier> mode. The tier table is the single source of truth — the same table
+ * automatically becomes a mode of the same name (add a `foobar` tier and you
+ * get a `foobar` mode). The tier table is the single source of truth — the same table
  * pi-subagents uses for the deep/mid/fast/view subagents — so a tier's model
  * and thinking are defined in one place with no separate "modes" block needed
  * in settings.json. An explicit "modes" block may still be added as deltas
@@ -15,10 +15,9 @@
  * Explicit `instructions` / `tools` on a mode definition override the file,
  * so the agent file stays the single source of truth for each tier.
  *
- *   /deep  /mid  /fast  /view   — switch directly
+ *   Shift+Tab                   — cycle modes (vanilla → tiers → vanilla)
  *   /mode                       — show current mode + list
  *   /mode <name> | /mode off    — switch / restore defaults
- *   Shift+Tab                   — cycle modes (vanilla → deep → mid → fast → view → vanilla)
  *   pi --preset <name>          — start in a mode
  *
  * Changing the model while in a mode (via /model or Ctrl+P) persists the new
@@ -111,17 +110,17 @@ export default function (pi: ExtensionAPI) {
 	let applyingModel = false;
 
 	/**
-	 * Derive modes from tiers: every agentOverrides key with a matching
-	 * <agentDir>/agents/<name>.md file becomes a mode named after the tier.
+	 * Derive modes from tiers: every agentOverrides key becomes a mode of the
+	 * same name. No agent file is required: a tier without one still switches
+	 * model + thinking, it just contributes no instructions/tools.
 	 * An explicit `modes` block in settings is merged on top as deltas, so a
 	 * custom mode (or a per-mode instructions/tools/thinkingLevel override)
-	 * can still be defined without redeclaring the tier boilerplate.
+	 * can still be defined.
 	 */
 	const buildModes = (s: SettingsShape): Record<string, Mode> => {
 		const out: Record<string, Mode> = {};
 		for (const name of Object.keys(s.subagents?.agentOverrides ?? {})) {
 			if (!/^[A-Za-z0-9_-]+$/.test(name)) continue;
-			if (!existsSync(join(getAgentDir(), "agents", `${name}.md`))) continue;
 			out[name] = { model: name };
 		}
 		for (const [name, delta] of Object.entries(s.modes ?? {})) {
@@ -271,22 +270,8 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.notify("Mode off — defaults restored", "info");
 	}
 
-	function registerModeCommands() {
-		for (const name of Object.keys(modes)) {
-			pi.registerCommand(name, {
-				description: `Switch to ${name} mode`,
-				handler: async (_args, ctx) => {
-					if (!(await applyMode(name, ctx))) {
-						ctx.ui.notify(`Unknown mode "${name}"`, "error");
-					}
-				},
-			});
-		}
-	}
-
-	// Register per-mode commands from global config at load time.
+	// Switching is via Shift+Tab and /mode — no per-mode slash commands.
 	refresh(process.cwd());
-	registerModeCommands();
 
 	pi.registerFlag("preset", { type: "string", description: "Start in a named mode" });
 
@@ -307,7 +292,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Shift+Tab cycles: (default) → deep → mid → fast → view → (default)
+	// Shift+Tab cycles: (default) → tiers in settings order → (default)
 	const getCycleNames = (): string[] => {
 		const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
 		return [VANILLA_LABEL, ...names];
@@ -329,23 +314,9 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Refresh config (picks up project-level overrides), register any project-defined
-	// mode commands, and honor --preset or the persisted defaultMode.
+	// Refresh config (picks up project-level overrides) and honor --preset
+	// or the persisted defaultMode.
 	pi.on("session_start", async (_event, ctx) => {
-		const before = new Set(Object.keys(modes));
-		refresh(ctx.cwd);
-		for (const name of Object.keys(modes)) {
-			if (!before.has(name)) {
-				pi.registerCommand(name, {
-					description: `Switch to ${name} mode`,
-					handler: async (_args, innerCtx) => {
-						if (!(await applyMode(name, innerCtx))) {
-							innerCtx.ui.notify(`Unknown mode "${name}"`, "error");
-						}
-					},
-				});
-			}
-		}
 		const flag = pi.getFlag("preset");
 		if (typeof flag === "string" && flag && modes[flag]) {
 			await applyMode(flag, ctx);
