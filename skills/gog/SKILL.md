@@ -50,4 +50,5 @@ gog tasks done <tasklistId> <taskId>           # complete (not delete); undo exi
 
 - Keyring error → env not loaded; see [install](references/install.md).
 - Auth/consent error → token expired or client broken; see [install](references/install.md).
+- Suspected credential leak, lost device, or user wants access shut off → follow [kill-switch](references/kill-switch.md) (revoke first, clean up second).
 - `--json` on any command for machine-readable output.
