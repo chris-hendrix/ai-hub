@@ -1,11 +1,13 @@
 /**
  * Modes extension — tier personas (deep / mid / fast / view).
  *
- * Mode definitions live in settings.json under "modes". Each mode references a
- * model tier by name ("deep" | "mid" | "fast" | "view"); tiers resolve
- * through subagents.agentOverrides.<tier>.model — the same table pi-subagents
- * uses for the deep/mid/fast/view subagents, so a tier's model is
- * defined in one place.
+ * Modes are derived from tiers: every subagents.agentOverrides.<tier> entry
+ * automatically becomes a mode of the same name (add a `foobar` tier and you
+ * get a `foobar` mode). The tier table is the single source of truth — the same table
+ * pi-subagents uses for the deep/mid/fast/view subagents — so a tier's model
+ * and thinking are defined in one place with no separate "modes" block needed
+ * in settings.json. An explicit "modes" block may still be added as deltas
+ * (a custom mode, or a per-mode instructions/tools/thinkingLevel override).
  *
  * A mode's instructions and tools come from its tier agent file
  * (<agentDir>/agents/<tier>.md) — the body is injected as the mode's
@@ -13,16 +15,17 @@
  * Explicit `instructions` / `tools` on a mode definition override the file,
  * so the agent file stays the single source of truth for each tier.
  *
- *   /deep  /mid  /fast  /view   — switch directly
+ *   Shift+Tab                   — cycle modes (vanilla → tiers → vanilla)
  *   /mode                       — show current mode + list
  *   /mode <name> | /mode off    — switch / restore defaults
- *   Shift+Tab                   — cycle modes (vanilla → deep → mid → fast → view → vanilla)
  *   pi --preset <name>          — start in a mode
  *
- * Changing the model or thinking level while in a mode (via /model, Ctrl+P, or
- * /thinking) persists the new values as the defaults for that tier — it writes
- * back to subagents.agentOverrides.<tier>.{model,thinking} so both the mode and
- * its subagents use the new defaults next time.
+ * Changing the model while in a mode (via /model or Ctrl+P) persists the new
+ * value as the default for that tier — it writes back to
+ * subagents.agentOverrides.<tier>.model so both the mode and its subagents
+ * use it next time. Thinking-level changes (via /thinking) are session-only
+ * and never written back; every mode entry re-applies the tier's configured
+ * thinking from subagents.agentOverrides.<tier>.thinking.
  *
  * Shift+Tab cycles through vanilla (no mode) and all defined modes.
  * Vanilla = plain pi, no extra instructions, original tools/model restored.
@@ -49,6 +52,7 @@ interface Mode {
 interface SettingsShape {
 	defaultProvider?: string;
 	defaultMode?: string;
+	/** Optional explicit mode deltas, merged over the tier-derived modes. */
 	modes?: Record<string, Mode>;
 	subagents?: { agentOverrides?: Record<string, { model?: string; thinking?: string }> };
 }
@@ -95,7 +99,7 @@ function loadSettings(cwd: string): SettingsShape {
 }
 
 export default function (pi: ExtensionAPI) {
-	// Insertion order of modes as declared in global settings — the logical cycle order.
+	// Insertion order of global tiers — the logical cycle order.
 	let modeOrder: string[] = [];
 	let modes: Record<string, Mode> = {};
 	let overrides: Record<string, { model?: string; thinking?: string }> = {};
@@ -104,17 +108,36 @@ export default function (pi: ExtensionAPI) {
 	let active: string | undefined;
 	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[]; thinking: string } | undefined;
 	let applyingModel = false;
-	let applyingThinking = false;
+
+	/**
+	 * Derive modes from tiers: every agentOverrides key becomes a mode of the
+	 * same name. No agent file is required: a tier without one still switches
+	 * model + thinking, it just contributes no instructions/tools.
+	 * An explicit `modes` block in settings is merged on top as deltas, so a
+	 * custom mode (or a per-mode instructions/tools/thinkingLevel override)
+	 * can still be defined.
+	 */
+	const buildModes = (s: SettingsShape): Record<string, Mode> => {
+		const out: Record<string, Mode> = {};
+		for (const name of Object.keys(s.subagents?.agentOverrides ?? {})) {
+			if (!/^[A-Za-z0-9_-]+$/.test(name)) continue;
+			out[name] = { model: name };
+		}
+		for (const [name, delta] of Object.entries(s.modes ?? {})) {
+			out[name] = { ...(out[name] ?? {}), ...delta };
+		}
+		return out;
+	};
 
 	const refresh = (cwd: string) => {
 		const s = loadSettings(cwd);
-		modes = s.modes ?? {};
+		modes = buildModes(s);
 		overrides = s.subagents?.agentOverrides ?? {};
 		defaultProvider = s.defaultProvider;
 		defaultMode = s.defaultMode;
-		// Track insertion order from global settings for the cycle shortcut.
+		// Track insertion order from global tiers for the cycle shortcut.
 		const globalRaw = readJson(join(getAgentDir(), "settings.json")) as SettingsShape;
-		modeOrder = globalRaw.modes ? Object.keys(globalRaw.modes) : Object.keys(modes);
+		modeOrder = Object.keys(buildModes(globalRaw));
 	};
 
 	/** Resolve "deep" | "mid" | "fast" | "view" (or a literal provider/id) to {provider, id}. */
@@ -219,12 +242,7 @@ export default function (pi: ExtensionAPI) {
 
 		const thinking = mode.thinkingLevel ?? (mode.model ? overrides[mode.model]?.thinking : undefined);
 		if (thinking) {
-			applyingThinking = true;
-			try {
-				pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
-			} finally {
-				applyingThinking = false;
-			}
+			pi.setThinkingLevel(thinking as Parameters<typeof pi.setThinkingLevel>[0]);
 		}
 
 		// Explicit mode tools win; otherwise the tier's agent file frontmatter
@@ -252,22 +270,8 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.notify("Mode off — defaults restored", "info");
 	}
 
-	function registerModeCommands() {
-		for (const name of Object.keys(modes)) {
-			pi.registerCommand(name, {
-				description: `Switch to ${name} mode`,
-				handler: async (_args, ctx) => {
-					if (!(await applyMode(name, ctx))) {
-						ctx.ui.notify(`Unknown mode "${name}"`, "error");
-					}
-				},
-			});
-		}
-	}
-
-	// Register per-mode commands from global config at load time.
+	// Switching is via Shift+Tab and /mode — no per-mode slash commands.
 	refresh(process.cwd());
-	registerModeCommands();
 
 	pi.registerFlag("preset", { type: "string", description: "Start in a named mode" });
 
@@ -288,7 +292,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Shift+Tab cycles: (default) → deep → mid → fast → view → (default)
+	// Shift+Tab cycles: (default) → tiers in settings order → (default)
 	const getCycleNames = (): string[] => {
 		const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
 		return [VANILLA_LABEL, ...names];
@@ -310,23 +314,9 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Refresh config (picks up project-level overrides), register any project-defined
-	// mode commands, and honor --preset or the persisted defaultMode.
+	// Refresh config (picks up project-level overrides) and honor --preset
+	// or the persisted defaultMode.
 	pi.on("session_start", async (_event, ctx) => {
-		const before = new Set(Object.keys(modes));
-		refresh(ctx.cwd);
-		for (const name of Object.keys(modes)) {
-			if (!before.has(name)) {
-				pi.registerCommand(name, {
-					description: `Switch to ${name} mode`,
-					handler: async (_args, innerCtx) => {
-						if (!(await applyMode(name, innerCtx))) {
-							innerCtx.ui.notify(`Unknown mode "${name}"`, "error");
-						}
-					},
-				});
-			}
-		}
 		const flag = pi.getFlag("preset");
 		if (typeof flag === "string" && flag && modes[flag]) {
 			await applyMode(flag, ctx);
@@ -352,9 +342,10 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// Model + thinking persistence: changing the model or thinking level while in a
-	// tier mode updates that tier's defaults (agentOverrides.<tier>.{model,thinking})
-	// so both the mode and its subagents use the new values next session.
+	// Model persistence: changing the model while in a tier mode updates that
+	// tier's default (agentOverrides.<tier>.model) so both the mode and its
+	// subagents use it next session. Thinking-level changes are intentionally
+	// not persisted — each mode entry re-applies the tier's configured thinking.
 	pi.on("model_select", async (event, ctx) => {
 		if (!active || applyingModel) return;
 		const source = (event as { source?: string }).source;
@@ -366,15 +357,5 @@ export default function (pi: ExtensionAPI) {
 		overrides[active] = { ...overrides[active], model: newSpec };
 		persistOverride(active, { model: newSpec });
 		ctx.ui.notify(`"${active}" default model updated: ${newSpec}`, "info");
-	});
-
-	pi.on("thinking_level_select", async (event, ctx) => {
-		if (!active || applyingThinking) return;
-		const level = (event as { level?: string }).level;
-		if (!level) return;
-		if (overrides[active]?.thinking === level) return;
-		overrides[active] = { ...overrides[active], thinking: level };
-		persistOverride(active, { thinking: level });
-		ctx.ui.notify(`"${active}" default thinking updated: ${level}`, "info");
 	});
 }
