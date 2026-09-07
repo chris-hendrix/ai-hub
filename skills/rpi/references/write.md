@@ -1,6 +1,6 @@
 # Write
 
-Persist via `rpi write <subdir> --topic "<title>"` — body on stdin (first arg is the subdir: `plans|reviews|implementations|handoffs`). If the last message is already the artifact, pass it through unchanged — don't regenerate.
+Persist via `rpi write <subdir> --topic "<title>"` — body on stdin (first arg is the subdir: `plans|reviews|implementations|handoffs`). If the last message is already the artifact, pass it through unchanged — don't regenerate. Never use the file write tool for `.rpi/` docs — always this CLI.
 
 The script owns everything mechanical: filename (`timestamp[-ticket-]title`), frontmatter, and subdirs. Frontmatter varies by type — `status` only for plans (`planned`) and handoffs (`handed-off`); `sessions` chain only for handoffs. Flags: `--ticket`, `--status`.
 

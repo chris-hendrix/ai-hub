@@ -20,3 +20,5 @@ End with a verdict:
 - 🚫 **Changes requested** — one or more blocking findings
 
 When subagents are available, run the review in one — a reviewer without the author's conversation history judges the plan on its own terms. Otherwise, review from the plan document alone, deliberately ignoring the session's context.
+
+A verdict goes stale the moment the plan changes materially after it — say so and recommend re-review instead of carrying the old approval forward.
