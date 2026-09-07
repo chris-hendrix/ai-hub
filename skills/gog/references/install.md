@@ -6,8 +6,8 @@ Reference only — the skill normally never needs this.
 
 - Binary: `~/.local/bin/gog` (single Go binary, https://github.com/openclaw/gogcli)
 - OAuth client: Desktop app in Google Cloud project `gogcli-507918` (account chendrix1123@gmail.com)
-- Credentials: stored via `gog auth credentials set <client_secret.json>` → `~/.local/share/gogcli/credentials.json`
-- Tokens: file keyring at `~/.local/share/gogcli/keyring/`
+- Credentials: stored via `gog auth credentials set <client_secret.json>` into gog's local config (see `gog auth keyring` / [Paths and State](https://github.com/openclaw/gogcli/blob/main/docs/paths.md) for exact locations)
+- Tokens: platform keyring by default; this machine uses the encrypted file backend (see Environment below)
 
 ## Environment (`.zshrc` only — user is zsh)
 

@@ -17,7 +17,7 @@ Console → https://console.cloud.google.com/auth/clients?project=gogcli-507918 
 ## 3. Clear local secrets
 
 ```bash
-rm -rf ~/.local/share/gogcli ~/.config/gogcli
+rm -rf <gog config dir> <gog keyring dir>   # `gog auth keyring` shows locations
 # then remove from ~/.zshrc: GOG_KEYRING_PASSWORD, GOG_ACCOUNT (keep GOG_KEYRING_BACKEND=file)
 ```
 
