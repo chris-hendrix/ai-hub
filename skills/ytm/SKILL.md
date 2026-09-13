@@ -7,21 +7,12 @@ description: "Use the `ytm` CLI for YouTube Music: search songs, view playlists,
 
 ## Setup (one-time auth)
 
-Auth is via browser cookie at `~/.config/ytm/browser.json` (`chmod 600`) —
-`get_client()` prefers it when present. To (re)create it: open
-`music.youtube.com` signed in → F12 → Network → filter `browse` → reload →
-click a `browse` POST → Headers → view source → copy the block (must include
-`cookie:` and `x-goog-authuser:`), then run:
-`uv run --project ~/git/ai-hub/cli/ytm ytmusicapi browser --file ~/.config/ytm/browser.json`
-(paste at the prompt, Enter + Ctrl-D), `chmod 600` the file.
-Verify: `ytm doctor` prints the account name/handle.
+Auth = browser cookie at `~/.config/ytm/browser.json` (`chmod 600`), already
+configured on this machine. Full walkthrough (fresh machine, cookie refresh,
+OAuth-spare notes): [references/setup.md](references/setup.md).
 
-> OAuth is broken upstream since ~Aug 2025 (YouTube rejects OAuth tokens on
-> the internal API; see `cli/ytm/README.md` §2). OAuth files are kept as a
-> spare; the CLI falls back to them automatically if `browser.json` is absent.
-
-Re-auth / troubleshooting: see `cli/ytm/README.md` (cookie expiry → redo the
-steps above; never-delete rule; no secrets in the repo).
+> OAuth is broken upstream since ~Aug 2025 (ytmusicapi#813) — don't try to
+> "fix" auth by re-running the oauth flow; refresh the cookie instead.
 
 ## Rules
 
