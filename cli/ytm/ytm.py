@@ -156,6 +156,101 @@ def cmd_liked(args: argparse.Namespace) -> None:
         print(format_liked(liked))
 
 
+RATING_FOR_COMMAND = {
+    "like": "LIKE",
+    "dislike": "DISLIKE",
+    "unlike": "INDIFFERENT",
+    "undislike": "INDIFFERENT",
+}
+
+PAST_TENSE_FOR_COMMAND = {
+    "like": "Liked",
+    "dislike": "Disliked",
+    "unlike": "Unliked",
+    "undislike": "Undisliked",
+}
+
+
+def resolve_song(client, query: str | None, video_id: str | None) -> tuple[str, dict | None]:
+    """Resolve a query or explicit id to (videoId, track entry or None)."""
+    if video_id:
+        return video_id, None
+    if not query:
+        raise SystemExit("error: provide a search query or --id <videoId>")
+    results = client.search(query, filter="songs") or []
+    for entry in results:
+        if isinstance(entry, dict) and entry.get("videoId"):
+            return str(entry["videoId"]), entry
+    raise SystemExit(f"error: no song result for {query!r}")
+
+
+def cmd_rate(args: argparse.Namespace) -> None:
+    rating = RATING_FOR_COMMAND[args.command]
+    verb = PAST_TENSE_FOR_COMMAND[args.command]
+    client = get_client()
+    video_id, entry = resolve_song(
+        client, getattr(args, "query", None), getattr(args, "video_id", None)
+    )
+    client.rate_song(video_id, rating)
+    if getattr(args, "json", False):
+        title = entry.get("title") if isinstance(entry, dict) else None
+        print(json.dumps({"videoId": video_id, "rating": rating, "title": title}, indent=2))
+        return
+    if isinstance(entry, dict):
+        title = str(entry.get("title", video_id))
+        artists = _artists_str(entry)
+        print(f"\u2713 {verb}: {title} \u2014 {artists} ({video_id})")
+    else:
+        print(f"\u2713 {verb}: ({video_id})")
+
+
+PRIVACY_STATUS = {
+    "private": "PRIVATE",
+    "public": "PUBLIC",
+    "unlisted": "UNLISTED",
+}
+
+
+def cmd_create_playlist(args: argparse.Namespace) -> None:
+    client = get_client()
+    result = client.create_playlist(
+        args.title,
+        args.description or "",
+        privacy_status=PRIVACY_STATUS[args.privacy],
+    )
+    playlist_id = result.get("playlistId") if isinstance(result, dict) else result
+    playlist_id = str(playlist_id)
+    if getattr(args, "json", False):
+        print(json.dumps({"playlistId": playlist_id, "title": args.title}, indent=2))
+    else:
+        print(playlist_id)
+
+
+def cmd_add(args: argparse.Namespace) -> None:
+    client = get_client()
+    video_ids: list[str] = []
+    titles: list[str] = []
+    for query in args.queries:
+        video_id, entry = resolve_song(client, query, None)
+        if video_id not in video_ids:
+            video_ids.append(video_id)
+            if isinstance(entry, dict):
+                titles.append(str(entry.get("title", video_id)))
+            else:
+                titles.append(video_id)
+    client.add_playlist_items(args.playlist_id, video_ids)
+    if getattr(args, "json", False):
+        print(
+            json.dumps(
+                {"playlistId": args.playlist_id, "videoIds": video_ids, "titles": titles},
+                indent=2,
+            )
+        )
+    else:
+        for title, vid in zip(titles, video_ids):
+            print(f"\u2713 Added: {title} ({vid}) to {args.playlist_id}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ytm", description="YouTube Music CLI wrapper")
     sub = p.add_subparsers(dest="command")
@@ -177,9 +272,32 @@ def build_parser() -> argparse.ArgumentParser:
     lk = sub.add_parser("liked", help="list liked songs")
     lk.add_argument("--json", dest="json", action="store_true", help="machine-readable output")
 
-    # Mutation stubs (Tasks 5-6) so --help lists the allowlisted surface early.
-    for name in ("like", "dislike", "unlike", "undislike", "create-playlist", "add"):
-        sub.add_parser(name, help=f"{name} (not yet implemented)")
+    for name, verb in (
+        ("like", "like"),
+        ("dislike", "dislike"),
+        ("unlike", "unlike"),
+        ("undislike", "undislike"),
+    ):
+        rp = sub.add_parser(name, help=f"{verb} a song by search term or video ID")
+        rp.add_argument("query", nargs="?", default=None, help="search term (top songs result)")
+        rp.add_argument("--id", dest="video_id", default=None, help="rate this videoId directly")
+        rp.add_argument("--json", dest="json", action="store_true", help="machine-readable output")
+
+    cp = sub.add_parser("create-playlist", help="create a new playlist")
+    cp.add_argument("--title", required=True, help="playlist title")
+    cp.add_argument("--description", default="", help="playlist description")
+    cp.add_argument(
+        "--privacy",
+        default="private",
+        choices=["private", "public", "unlisted"],
+        help="playlist privacy (default private)",
+    )
+    cp.add_argument("--json", dest="json", action="store_true", help="machine-readable output")
+
+    ad = sub.add_parser("add", help="add songs to a playlist")
+    ad.add_argument("playlist_id", help="playlist ID")
+    ad.add_argument("queries", nargs="+", help="search terms (top songs result each)")
+    ad.add_argument("--json", dest="json", action="store_true", help="machine-readable output")
     return p
 
 
@@ -203,6 +321,15 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "liked":
         cmd_liked(args)
+        return
+    if args.command in ("like", "dislike", "unlike", "undislike"):
+        cmd_rate(args)
+        return
+    if args.command == "create-playlist":
+        cmd_create_playlist(args)
+        return
+    if args.command == "add":
+        cmd_add(args)
         return
     parser.error(f"command '{args.command}' not yet implemented")
 
