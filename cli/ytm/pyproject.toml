@@ -1,0 +1,23 @@
+[project]
+name = "ytm"
+version = "0.1.0"
+description = "YouTube Music CLI wrapper around ytmusicapi"
+requires-python = ">=3.10"
+dependencies = [
+  "ytmusicapi==1.10.3",
+]
+
+[dependency-groups]
+dev = [
+  "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+ytm = "ytm:main"
+
+[tool.hatch.build.targets.wheel]
+packages = []
