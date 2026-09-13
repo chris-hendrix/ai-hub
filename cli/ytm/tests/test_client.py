@@ -84,3 +84,17 @@ def test_doctor_json(tmp_path, monkeypatch, capsys):
         ytm.main(["doctor", "--json"])
     out = capsys.readouterr().out
     assert json.loads(out)["accountName"] == "Test User"
+
+
+def test_browser_json_wins_when_present(tmp_path, monkeypatch):
+    cfg = tmp_path / ".config" / "ytm"
+    _write_client(cfg)
+    (cfg / "browser.json").write_text("{}")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("YTM_CLIENT_ID", raising=False)
+    monkeypatch.delenv("YTM_CLIENT_SECRET", raising=False)
+    with mock.patch.object(ytm, "YTMusic") as m_ytm:
+        ytm.get_client()
+    args, kwargs = m_ytm.call_args
+    assert args[0] == str(cfg / "browser.json")
+    assert "oauth_credentials" not in kwargs

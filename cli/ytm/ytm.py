@@ -19,6 +19,13 @@ SETUP_HINT = (
 
 def get_client() -> YTMusic:
     cfg_dir = Path("~/.config/ytm").expanduser()
+    browser_file = cfg_dir / "browser.json"
+    # Browser-cookie auth is the working path: YouTube broke OAuth for the
+    # internal youtubei API in Aug 2025 (ytmusicapi#813), so OAuth tokens
+    # 400 on every call even though they validate on the Data API v3.
+    # OAuth files are kept as a spare; browser.json wins when present.
+    if browser_file.is_file():
+        return YTMusic(str(browser_file))
     creds_file = cfg_dir / "client.json"
     oauth_file = cfg_dir / "oauth.json"
     env_id = os.environ.get("YTM_CLIENT_ID")
