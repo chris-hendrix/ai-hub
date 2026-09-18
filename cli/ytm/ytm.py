@@ -156,7 +156,8 @@ def cmd_playlist(args: argparse.Namespace) -> None:
 
 def cmd_liked(args: argparse.Namespace) -> None:
     client = get_client()
-    liked = client.get_liked_songs()
+    limit = getattr(args, "limit", None)
+    liked = client.get_liked_songs(limit=limit)  # None → library default (200); explicit N fetches all pages up to N
     if getattr(args, "json", False):
         print(json.dumps(liked, indent=2))
     else:
@@ -278,6 +279,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     lk = sub.add_parser("liked", help="list liked songs")
     lk.add_argument("--json", dest="json", action="store_true", help="machine-readable output")
+    lk.add_argument("--limit", type=int, default=None, metavar="N", help="fetch up to N liked songs (default 200; pass e.g. 2000 for the whole library)")
 
     for name, verb in (
         ("like", "like"),
