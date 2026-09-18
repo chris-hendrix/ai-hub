@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "YouTube Music CLI wrapper around ytmusicapi"
 requires-python = ">=3.10"
 dependencies = [
-  "ytmusicapi==1.10.3",
+  "ytmusicapi==1.12.2",
 ]
 
 [dependency-groups]

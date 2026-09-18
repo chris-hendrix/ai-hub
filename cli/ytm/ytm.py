@@ -19,6 +19,13 @@ SETUP_HINT = (
 
 def get_client() -> YTMusic:
     cfg_dir = Path("~/.config/ytm").expanduser()
+    browser_file = cfg_dir / "browser.json"
+    # Browser-cookie auth is the working path: YouTube broke OAuth for the
+    # internal youtubei API in Aug 2025 (ytmusicapi#813), so OAuth tokens
+    # 400 on every call even though they validate on the Data API v3.
+    # OAuth files are kept as a spare; browser.json wins when present.
+    if browser_file.is_file():
+        return YTMusic(str(browser_file))
     creds_file = cfg_dir / "client.json"
     oauth_file = cfg_dir / "oauth.json"
     env_id = os.environ.get("YTM_CLIENT_ID")
@@ -149,7 +156,8 @@ def cmd_playlist(args: argparse.Namespace) -> None:
 
 def cmd_liked(args: argparse.Namespace) -> None:
     client = get_client()
-    liked = client.get_liked_songs()
+    limit = getattr(args, "limit", None)
+    liked = client.get_liked_songs(limit=limit)  # None → library default (200); explicit N fetches all pages up to N
     if getattr(args, "json", False):
         print(json.dumps(liked, indent=2))
     else:
@@ -271,6 +279,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     lk = sub.add_parser("liked", help="list liked songs")
     lk.add_argument("--json", dest="json", action="store_true", help="machine-readable output")
+    lk.add_argument("--limit", type=int, default=None, metavar="N", help="fetch up to N liked songs (default 200; pass e.g. 2000 for the whole library)")
 
     for name, verb in (
         ("like", "like"),

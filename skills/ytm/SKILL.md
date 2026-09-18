@@ -7,16 +7,12 @@ description: "Use the `ytm` CLI for YouTube Music: search songs, view playlists,
 
 ## Setup (one-time auth)
 
-1. GCP OAuth client: in GCP project **`gogcli-507918`**, enable **YouTube Data API v3**, then create an OAuth client ID of type **TVs and Limited Input devices** (desktop-type clients will not work here).
-2. Run the oauth flow and authorize with the main Google account:
-   `uv run --project ~/git/ai-hub/cli/ytm --with ytmusicapi ytmusicapi oauth`
-   (paste the TV-device client ID/secret when prompted). This writes the token to `~/.config/ytm/oauth.json`.
-3. Create `~/.config/ytm/client.json` (`chmod 600`) holding `client_id` / `client_secret`:
-   `{"client_id": "YOUR_TV_CLIENT_ID", "client_secret": "YOUR_TV_CLIENT_SECRET"}`
-   Do NOT put raw credentials in `.zshrc`. Optional override: `YTM_CLIENT_ID` / `YTM_CLIENT_SECRET` env vars win over the file when set.
-4. Verify: `ytm doctor` prints the account name/handle.
+Auth = browser cookie at `~/.config/ytm/browser.json` (`chmod 600`), already
+configured on this machine. Full walkthrough (fresh machine, cookie refresh,
+OAuth-spare notes): [references/setup.md](references/setup.md).
 
-Re-auth / troubleshooting: see `cli/ytm/README.md` (token expiry ~7 days on the in-production app → re-run `ytmusicapi oauth`; missing-credentials, wrong-account, and browser-auth fallback notes there too). Token at `~/.config/ytm/oauth.json` never enters the repo.
+> OAuth is broken upstream since ~Aug 2025 (ytmusicapi#813) — don't try to
+> "fix" auth by re-running the oauth flow; refresh the cookie instead.
 
 ## Rules
 
@@ -64,5 +60,5 @@ uv run --project ~/git/ai-hub/cli/ytm ytm add PLabc123 "weird fishes" "reckoner"
 
 ## Troubleshooting
 
-- Missing credentials → create `~/.config/ytm/client.json` (`chmod 600`); full steps in `cli/ytm/README.md`.
-- Auth suddenly stops working → re-run the oauth flow, then `ytm doctor`.
+- Missing credentials → save `~/.config/ytm/browser.json` per Setup above; full steps in `cli/ytm/README.md`.
+- Auth suddenly stops working → cookie expired; redo the Setup steps, then `ytm doctor`.
