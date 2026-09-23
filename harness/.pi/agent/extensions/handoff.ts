@@ -1,16 +1,30 @@
 /**
  * handoff — one command from one session to the next.
  *
- *   /handoff [focus]
+ *   /handoff [focus] [--dir <path>] [--here|--current] [--root]
  *
- *   1. gathers workspace facts (branch, HEAD, status, recent commits,
- *      diffstat) and asks this session's agent to write a handoff for the
- *      agent that replaces it. The facts ride along in the instruction, so
- *      the turn is a single model call with no tool use.
- *   2. persists the result to .handoffs/<date>-<HHMMSS>-<slug>.md with
- *      frontmatter carrying the chain of session ids.
+ *   1. gathers workspace facts (branch, HEAD, status, recent commits) and asks
+ *      this session's agent to write a handoff for the agent that replaces it.
+ *      The facts ride along in the instruction, so the turn is a single model
+ *      call with no tool use. Thinking drops to "minimal" for that turn and is
+ *      restored afterwards.
+ *   2. persists the result to <dir>/<date>-<HHMMSS>-<slug>.md with frontmatter
+ *      carrying the chain of session ids.
  *   3. starts a fresh session and injects the handoff as a plain user message,
  *      which the agent picks up automatically.
+ *
+ * Storage defaults to `.handoffs/` in the main worktree, so sessions running
+ * in linked worktrees still share one chain. Configure in settings.json:
+ *
+ *   { "handoff": { "dir": ".handoffs", "worktrees": "root" } }
+ *
+ * - `dir`: handoff directory, default ".handoffs". Relative paths resolve
+ *   against the storage root; absolute paths are used as-is.
+ * - `worktrees`: "root" (default) stores in the main worktree;
+ *   "current" stores in the worktree the session runs in.
+ *
+ * Precedence for the directory: --dir flag > PI_HANDOFF_DIR env >
+ * project settings > global settings > ".handoffs".
  *
  * Starting the fresh session goes through ctx.newSession(), which performs the
  * same reload/rebind cycle as /reload (session_shutdown → extensions, skills,
@@ -23,12 +37,15 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	SessionEntry,
 } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
+
+const DEFAULT_DIR = ".handoffs";
 
 interface Armed {
 	/** Command context — the only context that can start a session. */
@@ -37,8 +54,14 @@ interface Armed {
 	parentSession: string | undefined;
 	/** This session's id, appended to the handoff's session chain. */
 	sessionId: string;
-	/** Repository root the handoff file is written under. */
-	repoRoot: string;
+	/** Where the handoff file is written (main or current worktree root). */
+	storageRoot: string;
+	/** Worktree the session runs in (for display paths). */
+	worktreeRoot: string;
+	/** Handoff directory: relative to storageRoot, or absolute. */
+	dirName: string;
+	/** Thinking level to restore after the handoff turn. */
+	prevThinking: Parameters<ExtensionAPI["setThinkingLevel"]>[0];
 	/** Set once the handoff turn actually starts, so a late settle cannot act. */
 	started: boolean;
 }
@@ -92,6 +115,124 @@ function looksLikeHandoff(text: string): boolean {
 	return /^#\s+/m.test(text) && /^##\s+\d/m.test(text);
 }
 
+interface HandoffConfig {
+	dir?: string;
+	worktrees?: "root" | "current";
+}
+
+function readJsonFile(path: string): Record<string, unknown> {
+	try {
+		const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
+		return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+	} catch {
+		return {};
+	}
+}
+
+/** Global settings merged with project settings; project wins. */
+function readHandoffConfig(cwd: string): HandoffConfig {
+	const global = readJsonFile(join(getAgentDir(), "settings.json")).handoff;
+	const project = readJsonFile(join(cwd, CONFIG_DIR_NAME, "settings.json")).handoff;
+	const out: HandoffConfig = {};
+	for (const source of [global, project]) {
+		if (!source || typeof source !== "object") continue;
+		const { dir, worktrees } = source as Record<string, unknown>;
+		if (typeof dir === "string" && dir.trim()) out.dir = dir.trim();
+		if (worktrees === "root" || worktrees === "current") out.worktrees = worktrees;
+	}
+	return out;
+}
+
+interface Flags {
+	dirFlag?: string;
+	placement?: "root" | "current";
+	focus: string;
+}
+
+const stripQuotes = (s: string): string => s.replace(/^["']|["']$/g, "");
+
+/**
+ * Pull --dir <path> / --dir=<path>, --here / --current, --root out of the
+ * command args; whatever remains is the focus text.
+ */
+function parseFlags(args: string): Flags {
+	let rest = args;
+	let dirFlag: string | undefined;
+	const dirEq = rest.match(/--dir=(\S+)/);
+	if (dirEq?.[1]) {
+		dirFlag = stripQuotes(dirEq[1]);
+		rest = rest.replace(dirEq[0], " ");
+	} else {
+		const dirSep = rest.match(/--dir\s+(\S+)/);
+		if (dirSep?.[1]) {
+			dirFlag = stripQuotes(dirSep[1]);
+			rest = rest.replace(dirSep[0], " ");
+		}
+	}
+	let placement: "root" | "current" | undefined;
+	if (/\B--here\b|\B--current\b/.test(rest)) placement = "current";
+	if (/\B--root\b/.test(rest)) placement = "root";
+	rest = rest
+		.replace(/\B--here\b/g, " ")
+		.replace(/\B--current\b/g, " ")
+		.replace(/\B--root\b/g, " ");
+	return { dirFlag, placement, focus: rest.trim().replace(/\s+/g, " ") };
+}
+
+function resolveDirName(flag: string | undefined, config: HandoffConfig): string {
+	const raw = flag || process.env.PI_HANDOFF_DIR || config.dir || DEFAULT_DIR;
+	const clean = raw.trim().replace(/\/+$/g, "") || DEFAULT_DIR;
+	return clean;
+}
+
+async function resolveRoots(
+	pi: ExtensionAPI,
+	cwd: string,
+): Promise<{ worktreeRoot: string; mainRoot: string; inGit: boolean }> {
+	let worktreeRoot: string;
+	try {
+		const top = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd });
+		const out = (top.stdout ?? "").trim();
+		if (top.code !== 0 || !out) return { worktreeRoot: cwd, mainRoot: cwd, inGit: false };
+		worktreeRoot = out;
+	} catch {
+		return { worktreeRoot: cwd, mainRoot: cwd, inGit: false };
+	}
+
+	// `worktree list` prints the main worktree first with absolute paths.
+	try {
+		const list = await pi.exec("git", ["worktree", "list", "--porcelain"], {
+			cwd: worktreeRoot,
+		});
+		if (list.code === 0) {
+			const first = list.stdout
+				.split("\n")
+				.find((line) => line.startsWith("worktree "));
+			const main = first?.slice("worktree ".length).trim();
+			if (main) return { worktreeRoot, mainRoot: main, inGit: true };
+		}
+	} catch {
+		// fall through to the common-dir heuristic
+	}
+
+	// Linked worktrees share the main worktree's git dir:
+	// <main>/.git/worktrees/<name> vs <root>/.git for the main worktree.
+	try {
+		const common = await pi.exec("git", ["rev-parse", "--git-common-dir"], {
+			cwd: worktreeRoot,
+		});
+		const raw = (common.stdout ?? "").trim();
+		if (common.code === 0 && raw) {
+			const abs = isAbsolute(raw) ? raw : join(worktreeRoot, raw);
+			const linked = abs.match(/^(.*)\/\.git\/worktrees\/[^/]+$/);
+			if (linked?.[1]) return { worktreeRoot, mainRoot: linked[1], inGit: true };
+		}
+	} catch {
+		// ignore — storage falls back to the current worktree
+	}
+	return { worktreeRoot, mainRoot: worktreeRoot, inGit: true };
+}
+
 /**
  * Chain of session ids: the newest handoff's chain, with this session appended,
  * so the documents link together across sessions.
@@ -130,11 +271,13 @@ function chainSessions(dir: string, sessionId: string): string[] {
 }
 
 function persistHandoff(
-	repoRoot: string,
+	storageRoot: string,
+	dirName: string,
 	sessionId: string,
 	markdown: string,
-): { path: string; relativePath: string } {
-	const dir = join(repoRoot, ".handoffs");
+	preferRelative: boolean,
+): { path: string; displayPath: string; dir: string } {
+	const dir = resolve(storageRoot, dirName);
 	mkdirSync(dir, { recursive: true });
 
 	const body = markdown.trim();
@@ -165,34 +308,30 @@ function persistHandoff(
 	}
 	writeFileSync(path, `${frontmatter}${body}\n`);
 
-	return { path, relativePath: relative(repoRoot, path) };
+	// Relative when the handoff lives alongside the session; absolute when it
+	// lives in another worktree, so the next agent can still find the chain.
+	const displayPath = preferRelative ? relative(storageRoot, path) : path;
+	return { path, displayPath, dir };
 }
 
 function handoffInstruction(focus: string, facts: string): string {
 	return [
-		"You are ending this session and writing a handoff for the agent that replaces you. That agent has zero conversation history — this document is the only thing it starts with.",
+		"You are ending this session. Write the handoff for the agent that replaces you — it starts with zero history; this document is all it gets.",
 		"",
-		"Do not call any tools. The current workspace facts are provided below — use them as-is, do not re-gather them. Answer with ONLY the handoff document as your next and final message — no preamble, no commentary, no file writes. Your message is saved verbatim.",
+		"Do not call tools; workspace facts are below, use as-is. Reply with ONLY the handoff document — no preamble, no commentary, no file writes. It is saved verbatim.",
 		"",
 		"<workspace>",
 		facts,
 		"</workspace>",
 		"",
-		"Use exactly this shape:",
+		"Exactly these headings:",
+		"# Handoff — <one-line title>",
+		"## 1. What went before — goals, progress, key decisions with `file:line` refs, blockers.",
+		"## 2. Where things stand — branch/HEAD/uncommitted state, verified vs assumed, risks.",
+		"## 3. What comes next — next steps in priority order, open questions, what done looks like.",
 		"",
-		"# Handoff — <one-line title of this session>",
-		"",
-		"## 1. What went before",
-		"Goals, progress, key decisions with `file:line` refs, blockers and how they were resolved.",
-		"",
-		"## 2. Where things stand",
-		"Workspace state (branch, HEAD, uncommitted changes), what is verified vs assumed, risks, `file:line` refs.",
-		"",
-		"## 3. What comes next",
-		"Concrete next steps in priority order, open questions, what done looks like.",
-		"",
-		"Redact API keys, passwords, tokens, and PII. Be specific and complete: the next agent cannot ask you anything.",
-		focus ? `\nTailor the handoff to this focus: ${focus}` : "",
+		"Aim for 400-600 words. Redact keys, tokens, passwords, PII.",
+		focus ? `Focus: ${focus}` : "",
 	].join("\n");
 }
 
@@ -228,52 +367,73 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const root = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd: ctx.cwd });
-			const repoRoot = root.code === 0 && root.stdout.trim() ? root.stdout.trim() : ctx.cwd;
+			const { dirFlag, placement, focus } = parseFlags(args);
+			const config = readHandoffConfig(ctx.cwd);
+			const dirName = resolveDirName(dirFlag, config);
+			const { worktreeRoot, mainRoot, inGit } = await resolveRoots(pi, ctx.cwd);
+			const mode = placement ?? config.worktrees ?? "root";
+			const storageRoot = mode === "current" ? worktreeRoot : mainRoot;
 
 			// Pre-gather workspace facts here so the handoff turn is a single
-			// model call with no tool use — far faster than letting the agent
-			// shell out for each fact through its own tool loop.
-			const run = async (args: string[]): Promise<string> => {
+			// model call with no tool use. `status --short --branch` yields the
+			// branch (first `## ` line) plus status in one spawn; the other two
+			// run concurrently. `diff --stat` is deliberately skipped — status
+			// already lists the changed files and it is the slowest call.
+			const run = async (gitArgs: string[], cwd: string): Promise<string> => {
 				try {
-					const result = await pi.exec("git", args, { cwd: repoRoot });
+					const result = await pi.exec("git", gitArgs, { cwd });
 					const out = (result.stdout ?? "").trim();
 					return result.code === 0 && out ? out : "";
 				} catch {
 					return "";
 				}
 			};
-			const [gitBranch, head, status, log, diffstat] = await Promise.all([
-				run(["branch", "--show-current"]),
-				run(["rev-parse", "--short", "HEAD"]),
-				run(["status", "--short"]),
-				run(["log", "--oneline", "-8"]),
-				run(["diff", "--stat"]),
-			]);
+			const [statusBranch, head, log] = inGit
+				? await Promise.all([
+						run(["status", "--short", "--branch"], worktreeRoot),
+						run(["rev-parse", "--short", "HEAD"], worktreeRoot),
+						run(["log", "--oneline", "-8"], worktreeRoot),
+					])
+				: ["", "", ""];
 			const take = (s: string, n: number): string => s.split("\n").slice(0, n).join("\n");
+			const lines = statusBranch.split("\n");
+			const branchLine = lines[0]?.startsWith("## ") ? lines[0].slice(3) : "";
+			const status = (branchLine ? lines.slice(1) : lines).join("\n");
 			const facts = [
-				`branch: ${gitBranch || "(unknown)"}`,
+				`branch: ${branchLine || "(unknown)"}`,
 				`head: ${head || "(unknown)"}`,
+				`worktree: ${inGit ? worktreeRoot : ctx.cwd}`,
+				`handoffs: ${resolve(storageRoot, dirName)}`,
 				"status:",
 				take(status, 30) || "(clean)",
 				"recent commits:",
 				take(log, 8) || "(none)",
-				"diffstat:",
-				take(diffstat, 15) || "(none)",
 			].join("\n");
 
+			// Summarizing memory needs no reasoning budget — drop to minimal
+			// for the handoff turn, restore on settle.
+			const prevThinking = pi.getThinkingLevel();
 			armed = {
 				cmdCtx: ctx,
 				parentSession: ctx.sessionManager.getSessionFile(),
 				sessionId: ctx.sessionManager.getSessionId(),
-				repoRoot,
+				storageRoot,
+				worktreeRoot,
+				dirName,
+				prevThinking,
 				started: false,
 			};
 
 			ctx.ui.notify("Writing handoff…", "info");
 			try {
-				pi.sendUserMessage(handoffInstruction(args.trim(), facts));
+				pi.setThinkingLevel("minimal");
+				pi.sendUserMessage(handoffInstruction(focus, facts));
 			} catch (error) {
+				try {
+					pi.setThinkingLevel(prevThinking);
+				} catch {
+					// already tearing down; nothing to restore
+				}
 				armed = undefined;
 				ctx.ui.notify(
 					`Handoff failed to start: ${error instanceof Error ? error.message : String(error)}`,
@@ -294,6 +454,11 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_settled", async (_event, ctx) => {
 		if (!armed?.started) return;
 		const current = armed;
+		try {
+			pi.setThinkingLevel(current.prevThinking);
+		} catch {
+			// session context may be stale; the file write below still matters
+		}
 
 		const markdown = lastAssistantText(ctx.sessionManager.getBranch());
 		if (!markdown || !looksLikeHandoff(markdown)) {
@@ -302,9 +467,15 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		let saved: { path: string; relativePath: string };
+		let saved: { path: string; displayPath: string; dir: string };
 		try {
-			saved = persistHandoff(current.repoRoot, current.sessionId, markdown);
+			saved = persistHandoff(
+				current.storageRoot,
+				current.dirName,
+				current.sessionId,
+				markdown,
+				current.storageRoot === current.worktreeRoot,
+			);
 		} catch (error) {
 			armed = undefined;
 			ctx.ui.notify(
@@ -316,19 +487,19 @@ export default function (pi: ExtensionAPI) {
 
 		armed = undefined;
 		const document = readFileSync(saved.path, "utf-8");
-		const injection = `# handoff: ${saved.relativePath}\n\n${document}`;
+		const injection = `# handoff: ${saved.displayPath}\n\n${document}`;
 
 		try {
 			const result = await current.cmdCtx.newSession({
 				parentSession: current.parentSession,
 				withSession: async (replacement) => {
-					replacement.ui.notify(`Handoff → ${saved.relativePath}`, "info");
+					replacement.ui.notify(`Handoff → ${saved.displayPath}`, "info");
 					await replacement.sendUserMessage(injection);
 				},
 			});
 			if (result.cancelled) {
 				ctx.ui.notify(
-					`Handoff written to ${saved.relativePath}; new session cancelled`,
+					`Handoff written to ${saved.displayPath}; new session cancelled`,
 					"info",
 				);
 			}
@@ -337,7 +508,7 @@ export default function (pi: ExtensionAPI) {
 			// document is on disk, so the work is recoverable.
 			try {
 				ctx.ui.notify(
-					`Handoff written to ${saved.relativePath}, but the new session failed: ${error instanceof Error ? error.message : String(error)}`,
+					`Handoff written to ${saved.displayPath}, but the new session failed: ${error instanceof Error ? error.message : String(error)}`,
 					"error",
 				);
 			} catch {
