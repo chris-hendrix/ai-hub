@@ -36,7 +36,7 @@
  * from memory in one shot — no transcript re-serialization, no tool loops.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type {
 	ExtensionAPI,
@@ -240,10 +240,19 @@ async function resolveRoots(
 function chainSessions(dir: string, sessionId: string): string[] {
 	let newest: string | undefined;
 	try {
-		newest = readdirSync(dir)
-			.filter((file) => file.endsWith(".md"))
-			.sort()
-			.at(-1);
+		const files = readdirSync(dir).filter((file) => file.endsWith(".md"));
+		// mtime first: same-second "slug-2.md" sorts before "slug.md"
+		// lexically ("-" < "."), so a name sort alone can pick the older link.
+		newest = files
+			.map((file) => {
+				try {
+					return { file, mtime: statSync(join(dir, file)).mtimeMs };
+				} catch {
+					return { file, mtime: 0 };
+				}
+			})
+			.sort((a, b) => a.mtime - b.mtime || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0))
+			.at(-1)?.file;
 	} catch {
 		// no handoffs yet
 	}
