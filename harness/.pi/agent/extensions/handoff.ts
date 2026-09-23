@@ -64,6 +64,8 @@ interface Armed {
 	prevThinking: Parameters<ExtensionAPI["setThinkingLevel"]>[0];
 	/** Set once the handoff turn actually starts, so a late settle cannot act. */
 	started: boolean;
+	/** When the handoff was armed — a turn that never starts leaves stale state. */
+	armedAt: number;
 }
 
 let armed: Armed | undefined;
@@ -158,12 +160,12 @@ const stripQuotes = (s: string): string => s.replace(/^["']|["']$/g, "");
 function parseFlags(args: string): Flags {
 	let rest = args;
 	let dirFlag: string | undefined;
-	const dirEq = rest.match(/--dir=(\S+)/);
+	const dirEq = rest.match(/--dir=("[^"]*"|'[^']*'|\S+)/);
 	if (dirEq?.[1]) {
 		dirFlag = stripQuotes(dirEq[1]);
 		rest = rest.replace(dirEq[0], " ");
 	} else {
-		const dirSep = rest.match(/--dir\s+(\S+)/);
+		const dirSep = rest.match(/--dir\s+("[^"]*"|'[^']*'|\S+)/);
 		if (dirSep?.[1]) {
 			dirFlag = stripQuotes(dirSep[1]);
 			rest = rest.replace(dirSep[0], " ");
@@ -353,8 +355,16 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			if (armed) {
-				ctx.ui.notify("A handoff is already in progress", "warning");
-				return;
+				// A turn that never starts (or a session swapped underneath us)
+				// would otherwise block every future handoff until /reload.
+				const stale =
+					armed.sessionId !== ctx.sessionManager.getSessionId() ||
+					(!armed.started && Date.now() - armed.armedAt > 60_000);
+				if (stale) armed = undefined;
+				else {
+					ctx.ui.notify("A handoff is already in progress", "warning");
+					return;
+				}
 			}
 			if (!ctx.model) {
 				ctx.ui.notify("No model selected", "error");
@@ -431,6 +441,7 @@ export default function (pi: ExtensionAPI) {
 				dirName,
 				prevThinking,
 				started: false,
+				armedAt: Date.now(),
 			};
 
 			ctx.ui.notify("Writing handoff…", "info");
