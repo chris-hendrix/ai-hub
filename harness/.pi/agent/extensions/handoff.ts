@@ -235,6 +235,11 @@ async function resolveRoots(
 	return { worktreeRoot, mainRoot: worktreeRoot, inGit: true };
 }
 
+/** Cap on stored session ids: the chain is re-injected into every fresh
+ * session, so it must not grow without bound. Each document still links to
+ * its predecessor, so trimming the oldest links loses no continuity. */
+const MAX_SESSION_CHAIN = 20;
+
 /**
  * Chain of session ids: the newest handoff's chain, with this session appended,
  * so the documents link together across sessions.
@@ -278,6 +283,7 @@ function chainSessions(dir: string, sessionId: string): string[] {
 		}
 	}
 	if (!chain.includes(sessionId)) chain.push(sessionId);
+	while (chain.length > MAX_SESSION_CHAIN) chain.shift();
 	return chain;
 }
 
