@@ -8,23 +8,24 @@
  *      The facts ride along in the instruction, so the turn is a single model
  *      call with no tool use. Thinking drops to "minimal" for that turn and is
  *      restored afterwards.
- *   2. persists the result to <dir>/<date>-<HHMMSS>-<slug>.md with frontmatter
- *      carrying the chain of session ids.
+ *   2. persists the result to <dir>/<date>-<HHMMSS>-<slug>.md (default dir
+ *      `.rpi/handoffs`) with frontmatter carrying the chain of session ids.
  *   3. starts a fresh session and injects the handoff as a plain user message,
  *      which the agent picks up automatically.
  *
- * Storage defaults to `.handoffs/` in the main worktree, so sessions running
- * in linked worktrees still share one chain. Configure in settings.json:
+ * Storage defaults to `.rpi/handoffs/` in the main worktree, so sessions
+ * running in linked worktrees still share one chain. Configure in
+ * settings.json:
  *
- *   { "handoff": { "dir": ".handoffs", "worktrees": "root" } }
+ *   { "handoff": { "dir": ".rpi/handoffs", "worktrees": "root" } }
  *
- * - `dir`: handoff directory, default ".handoffs". Relative paths resolve
- *   against the storage root; absolute paths are used as-is.
+ * - `dir`: handoff directory, default ".rpi/handoffs". Relative paths
+ *   resolve against the storage root; absolute paths are used as-is.
  * - `worktrees`: "root" (default) stores in the main worktree;
  *   "current" stores in the worktree the session runs in.
  *
  * Precedence for the directory: --dir flag > PI_HANDOFF_DIR env >
- * project settings > global settings > ".handoffs".
+ * project settings > global settings > ".rpi/handoffs".
  *
  * Starting the fresh session goes through ctx.newSession(), which performs the
  * same reload/rebind cycle as /reload (session_shutdown → extensions, skills,
@@ -45,7 +46,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 
-const DEFAULT_DIR = ".handoffs";
+const DEFAULT_DIR = ".rpi/handoffs";
 
 interface Armed {
 	/** Command context — the only context that can start a session. */
