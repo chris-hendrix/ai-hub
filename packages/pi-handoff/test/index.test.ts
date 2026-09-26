@@ -23,15 +23,15 @@ function fakePi(): { pi: ExtensionAPI; commands: Call[]; messageRenderers: Call[
   return { pi: pi as unknown as ExtensionAPI, commands, messageRenderers, entryRenderers };
 }
 
-describe("pi-handoff wiring (phase 3)", () => {
-  it("registers exactly 1 command + 2 renderers without throwing", () => {
+describe("pi-handoff wiring (phases 3-5)", () => {
+  it("registers exactly 2 commands + 2 renderers without throwing", () => {
     const { pi, commands, messageRenderers, entryRenderers } = fakePi();
     assert.doesNotThrow(() => piHandoff(pi));
-    // Be explicit: 3 registrations total for this phase.
-    assert.equal(commands.length, 1);
+    // Be explicit: 4 registrations total.
+    assert.equal(commands.length, 2);
     assert.equal(messageRenderers.length, 1);
     assert.equal(entryRenderers.length, 1);
-    assert.equal(commands[0]!.name, "handoff");
+    assert.deepEqual(commands.map((c) => c.name), ["handoff", "pickup"]);
     assert.equal(messageRenderers[0]!.name, "handoff");
     assert.equal(entryRenderers[0]!.name, "handoff");
   });

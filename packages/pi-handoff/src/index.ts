@@ -4,17 +4,22 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import {
   BorderedLoader,
+  SessionManager,
   getAgentDir,
   getMarkdownTheme,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Text } from "@earendil-works/pi-tui";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { readHandoffConfig } from "./config.ts";
-import { extractSummary, extractTopic, formatStamp } from "./format.ts";
+import { extractSummary, extractTopic, formatStamp, orderRows } from "./format.ts";
 import { resolvePrompt } from "./prompt.ts";
 import { gatherFacts } from "./facts.ts";
 import { createPiRunner, generate, type Runner } from "./generate.ts";
 import { inject } from "./inject.ts";
+import { pickSession, reuse } from "./picker.ts";
+import { nodeScanFs, resolveSessionId, scanSessions, type SessionRow } from "./sessions.ts";
 import { pickHandoffEntries, toConversationText } from "./transcript.ts";
 
 type HandoffDetails = {
@@ -88,11 +93,149 @@ async function handleHandoff(pi: ExtensionAPI, ctx: ExtensionCommandContext): Pr
   }
 }
 
+async function handlePickup(
+  pi: ExtensionAPI,
+  ctx: ExtensionCommandContext,
+  argsText: string,
+): Promise<void> {
+  if (ctx.mode !== "tui") {
+    ctx.ui.notify("pickup requires interactive mode", "error");
+    return;
+  }
+  const model = ctx.model;
+  if (!model) {
+    ctx.ui.notify("No model selected", "error");
+    return;
+  }
+  try {
+    const root =
+      ctx.sessionManager.getSessionDir() || join(homedir(), ".pi", "agent", "sessions");
+    const current = ctx.sessionManager.getSessionFile();
+    // NO limit: id resolution must see everything.
+    const rows = scanSessions({ root, current, fs: nodeScanFs() });
+
+    let row: SessionRow;
+    const needle = argsText.trim();
+    if (needle !== "") {
+      const resolved = resolveSessionId(rows, needle);
+      if (!resolved.ok) {
+        ctx.ui.notify(resolved.error, "error");
+        return;
+      }
+      row = resolved.row;
+    } else {
+      const picked = await pickSession(ctx, orderRows(rows, ctx.cwd), ctx.cwd);
+      if (picked === null) {
+        ctx.ui.notify("Cancelled", "info");
+        return;
+      }
+      row = picked;
+    }
+
+    let doc: string;
+    let topic: string;
+    let summary: string;
+    let createdAt: string;
+    if (row.mark === "ready") {
+      // REUSE path: zero model calls, no I/O, nothing logged to the model.
+      const reused = reuse(row);
+      if (!reused.ok) {
+        ctx.ui.notify(reused.error, "error");
+        return;
+      }
+      doc = reused.handoff.doc;
+      topic = reused.handoff.topic;
+      summary = reused.handoff.summary;
+      createdAt = row.signifier?.createdAt || new Date().toISOString();
+    } else {
+      // DERIVE path: generate a handoff from the source session, then write
+      // the signifier back to that session so the next pickup reuses it.
+      let freshMtime: number;
+      try {
+        freshMtime = statSync(row.path).mtimeMs;
+      } catch {
+        freshMtime = Number.NaN;
+      }
+      if (freshMtime !== row.mtimeMs) {
+        ctx.ui.notify("Session changed since it was listed; run /pickup again", "error");
+        return;
+      }
+      const sm = SessionManager.open(row.path);
+      const branch = sm.getBranch();
+      const sources = readHandoffConfig(ctx.cwd, getAgentDir());
+      const resolved = resolvePrompt(sources, (p) => readFileSync(p, "utf-8"));
+      if (!resolved.ok) {
+        ctx.ui.notify(resolved.error, "error");
+        return;
+      }
+      const { instruction, custom } = resolved;
+      const conversation = toConversationText(pickHandoffEntries(branch));
+      // DEVIATION (authorized): workspace facts are gathered in the SOURCE
+      // session's workspace (row.cwd), not the current cwd.
+      const facts = custom
+        ? undefined
+        : await gatherFacts((command, commandArgs) =>
+            pi.exec(command, commandArgs, { cwd: row.cwd }),
+          );
+      const adapter: Runner = createPiRunner(model, ctx.modelRegistry);
+
+      const generated = await ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
+        const loader = new BorderedLoader(tui, theme, "Generating handoff…");
+        loader.onAbort = () => done(null);
+        generate({ instruction, conversation, facts }, adapter, loader.signal)
+          .then(done)
+          .catch(() => done(null));
+        return loader;
+      });
+
+      if (generated === null) {
+        ctx.ui.notify("Cancelled", "info");
+        return;
+      }
+      doc = generated;
+      topic = extractTopic(doc);
+      summary = extractSummary(doc);
+      createdAt = new Date().toISOString();
+      try {
+        sm.appendCustomEntry("handoff", {
+          doc,
+          topic,
+          summary,
+          createdAt,
+          from: ctx.sessionManager.getSessionId(),
+        });
+      } catch (err) {
+        // The doc is in hand: warn but still inject.
+        const detail = err instanceof Error ? err.message : String(err);
+        ctx.ui.notify(`could not write handoff back to source session: ${detail}`, "warning");
+      }
+    }
+
+    const sourceSession = row.id;
+    await ctx.newSession({
+      parentSession: row.path,
+      withSession: async (r) => {
+        await inject(r, { doc, topic, summary, sourceSession, createdAt });
+      },
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    ctx.ui.notify(`Pickup failed: ${detail}`, "error");
+  }
+}
+
 export default function piHandoff(pi: ExtensionAPI): void {
   pi.registerCommand("handoff", {
     description: "Write a handoff and continue in a fresh session with it injected",
     handler: async (_args, ctx) => {
       await handleHandoff(pi, ctx);
+    },
+  });
+
+  pi.registerCommand("pickup", {
+    description: "Pick up a handoff from another session",
+    handler: async (args, ctx) => {
+      await handlePickup(pi, ctx, args);
     },
   });
 

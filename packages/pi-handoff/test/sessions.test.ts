@@ -5,9 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   parseSignifierTail,
+  resolveSessionId,
   scanSessions,
   nodeScanFs,
   type ScanFs,
+  type SessionRow,
 } from "../src/sessions.ts";
 
 // ---------------------------------------------------------------------------
@@ -354,5 +356,63 @@ describe("sessions (task 10: measured budget over 500 real files)", () => {
     console.log(`warm scan: ${elapsed.toFixed(2)} ms for ${rows.length} files`);
     assert.equal(rows.length, N);
     assert.ok(elapsed < 50, `warm scan took ${elapsed.toFixed(2)} ms, budget is 50 ms`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 17 — Session id resolution (RED)
+// ---------------------------------------------------------------------------
+
+function testRow(id: string): SessionRow {
+  return {
+    path: `/sessions/--x--/${id}.jsonl`,
+    id,
+    cwd: "/x",
+    mtimeMs: 0,
+    bytes: 10,
+    mark: "derive",
+  };
+}
+
+describe("sessions (task 17: resolveSessionId)", () => {
+  const rows = [testRow("abc123"), testRow("abc456"), testRow("def789")];
+
+  it("exact id match wins outright, even when it is a prefix of other ids", () => {
+    const extended = [...rows, testRow("abc")];
+    const res = resolveSessionId(extended, "abc");
+    assert.equal(res.ok, true);
+    assert.equal(res.ok && res.row.id, "abc");
+  });
+
+  it("unique prefix matches", () => {
+    const res = resolveSessionId(rows, "def");
+    assert.equal(res.ok, true);
+    assert.equal(res.ok && res.row.id, "def789");
+  });
+
+  it("prefix match is case-insensitive", () => {
+    const res = resolveSessionId(rows, "DEF");
+    assert.equal(res.ok, true);
+    assert.equal(res.ok && res.row.id, "def789");
+  });
+
+  it("no match returns an error naming the input", () => {
+    const res = resolveSessionId(rows, "zzz");
+    assert.equal(res.ok, false);
+    assert.equal(!res.ok && res.error, 'no session matching "zzz"');
+  });
+
+  it("ambiguous prefix returns an error with the match count", () => {
+    const res = resolveSessionId(rows, "abc");
+    assert.equal(res.ok, false);
+    assert.equal(!res.ok && res.error, 'ambiguous session id "abc" (2 matches)');
+  });
+
+  it("trims the input; empty input is an error", () => {
+    const trimmed = resolveSessionId(rows, "  def789  ");
+    assert.equal(trimmed.ok, true);
+    assert.equal(trimmed.ok && trimmed.row.id, "def789");
+    assert.deepEqual(resolveSessionId(rows, ""), { ok: false, error: 'no session matching ""' });
+    assert.deepEqual(resolveSessionId(rows, "   "), { ok: false, error: 'no session matching ""' });
   });
 });

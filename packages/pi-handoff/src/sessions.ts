@@ -216,6 +216,38 @@ export function scanSessions(args: {
 }
 
 // ---------------------------------------------------------------------------
+// Session id resolution (Task 17)
+// ---------------------------------------------------------------------------
+
+export type ResolveIdResult = { ok: true; row: SessionRow } | { ok: false; error: string };
+
+/**
+ * Resolve a session id or id prefix over already-scanned rows.
+ *
+ * - Exact `row.id` match wins outright (even when it is also a prefix of
+ *   other ids).
+ * - Otherwise a case-insensitive prefix match: exactly one -> ok;
+ *   none -> `no session matching "<x>"`; more than one ->
+ *   `ambiguous session id "<x>" (<n> matches)`.
+ * - Input is trimmed; empty input is an error.
+ *
+ * DEVIATION (authorized): resolution runs over the scanned rows, not
+ * `SessionManager.findById` — `findById` is cwd-scoped and would miss
+ * sessions from other workspaces that the picker lists.
+ */
+export function resolveSessionId(rows: SessionRow[], idOrPrefix: string): ResolveIdResult {
+  const needle = idOrPrefix.trim();
+  if (needle === "") return { ok: false, error: 'no session matching ""' };
+  const exact = rows.find((row) => row.id === needle);
+  if (exact !== undefined) return { ok: true, row: exact };
+  const lower = needle.toLowerCase();
+  const matches = rows.filter((row) => row.id.toLowerCase().startsWith(lower));
+  if (matches.length === 1) return { ok: true, row: matches[0]! };
+  if (matches.length === 0) return { ok: false, error: `no session matching "${needle}"` };
+  return { ok: false, error: `ambiguous session id "${needle}" (${matches.length} matches)` };
+}
+
+// ---------------------------------------------------------------------------
 // Real fs facade (bounded reads only — never the whole file)
 // ---------------------------------------------------------------------------
 
