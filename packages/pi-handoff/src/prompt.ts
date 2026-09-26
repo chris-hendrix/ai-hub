@@ -13,6 +13,12 @@ Aim for 400-600 words. Redact keys, tokens, passwords, and PII.`;
 import { homedir } from "node:os";
 import { isAbsolute, join, normalize, resolve } from "node:path";
 
+export const RECEIVE_DIRECTIVE = [
+  "A handoff from a previous session is above. Do not start work.",
+  "Propose the next actions in priority order, based on the handoff's \u201CWhat comes next\u201D section.",
+  "State what you will do and what you need from me. Then stop and wait for my confirmation.",
+].join("\n");
+
 export function resolvePromptPath(p: string, originDir: string, home: string): string {
   if (p === "~") return home;
   if (p.startsWith("~/")) return join(home, p.slice(2));
