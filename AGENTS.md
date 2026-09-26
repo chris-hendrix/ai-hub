@@ -21,6 +21,7 @@ ai-hub/
 │           ├── extensions/     # tracked (modes.ts = tier modes; subagent-status.ts = footer status)
 │           └── skills/         # gitignored — reinstall per-skill via `npx skills add <name> --agent pi`
 ├── skills/rpi/             # opencode skill source of truth (pi will get its own rpi extension separately)
+├── packages/pi-handoff/    # publishable pi package: /handoff + /pickup (sessions are the only storage)
 ├── .env.example            # required env vars (CONTEXT7_API_KEY, etc.)
 ├── install.sh              # migrate | install | uninstall | repair (supports opencode|pi|all)
 └── Makefile               # make install / make opencode / make pi / migrate / repair / uninstall
@@ -61,6 +62,25 @@ This repo houses whole home dirs, so secrets and runtime live **inside** the wor
 | `*.env`, `*.key`, `*.pem`, `*.token` | generic secrets | — |
 
 Verify before pushing: `git ls-files | grep -E "auth\.json|models-store|\.env"` should be empty. `git check-ignore harness/.pi/agent/auth.json` should match.
+
+## Pi packages
+
+`packages/pi-handoff/` is a publishable pi package (`keywords: ["pi-package"]`), not a loose extension — `harness/.pi/agent/extensions/` no longer holds `handoff.ts`. It is loaded from `harness/.pi/agent/settings.json`:
+
+```json
+"packages": ["../../git/ai-hub/packages/pi-handoff"]
+```
+
+**Gotcha:** pi resolves a relative local package path from the settings file *as the process sees it* — through the `~/.pi` symlink, not the repo's real path. From `~/.pi/agent/`, two levels up is `~`. A path that is correct from the repo's real path (`../../../packages/pi-handoff`) resolves to `/home/packages/pi-handoff` and **fails silently** (the entry appears in `pi list` with no resolved path).
+
+Develop with:
+
+```sh
+cd packages/pi-handoff && bash scripts/link-types.sh   # dev-only type links
+cd packages/pi-handoff && node --test && npx tsc --noEmit
+```
+
+`scripts/link-types.sh` contains machine-absolute paths and is deliberately excluded from the published tarball (`files` is a narrow allowlist).
 
 ## Maintenance
 

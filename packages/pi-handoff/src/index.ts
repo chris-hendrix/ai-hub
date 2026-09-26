@@ -34,6 +34,10 @@ async function handleHandoff(pi: ExtensionAPI, ctx: ExtensionCommandContext): Pr
     ctx.ui.notify("handoff requires interactive mode", "error");
     return;
   }
+  if (!ctx.isIdle()) {
+    ctx.ui.notify("Finish the current turn before handing off", "warning");
+    return;
+  }
   if (!ctx.model) {
     ctx.ui.notify("No model selected", "error");
     return;
@@ -100,6 +104,10 @@ async function handlePickup(
 ): Promise<void> {
   if (ctx.mode !== "tui") {
     ctx.ui.notify("pickup requires interactive mode", "error");
+    return;
+  }
+  if (!ctx.isIdle()) {
+    ctx.ui.notify("Finish the current turn before picking up", "warning");
     return;
   }
   const model = ctx.model;
