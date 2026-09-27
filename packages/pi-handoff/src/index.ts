@@ -19,7 +19,7 @@ import { gatherFacts } from "./facts.ts";
 import { createPiRunner, generate, type Runner } from "./generate.ts";
 import { inject } from "./inject.ts";
 import { pickSession, reuse } from "./picker.ts";
-import { nodeScanFs, resolveSessionId, scanSessions, type SessionRow } from "./sessions.ts";
+import { nodeScanFs, resolveSessionId, scanRootFor, scanSessions, type SessionRow } from "./sessions.ts";
 import { pickHandoffEntries, toConversationText } from "./transcript.ts";
 
 type HandoffDetails = {
@@ -116,8 +116,12 @@ async function handlePickup(
     return;
   }
   try {
-    const root =
+    // getSessionDir() is the per-project encoded leaf in the default layout,
+    // so scanRootFor maps it to the base dir (every workspace) and leaves a
+    // custom --session-dir alone. Scanning the leaf itself would find nothing.
+    const sessionDir =
       ctx.sessionManager.getSessionDir() || join(homedir(), ".pi", "agent", "sessions");
+    const root = scanRootFor(sessionDir);
     const current = ctx.sessionManager.getSessionFile();
     // NO limit: id resolution must see everything.
     const rows = scanSessions({ root, current, fs: nodeScanFs() });

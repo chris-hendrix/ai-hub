@@ -1,5 +1,5 @@
 import { readdirSync, statSync, openSync, readSync, closeSync, fstatSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,12 +139,37 @@ function parseHeader(head: string): { id: string; cwd: string } | undefined {
 }
 
 /**
+ * Sessions root to scan, given a session manager's session dir.
+ *
+ * pi stores sessions as `<base>/--<encoded-cwd>--/<id>.jsonl` by default, but
+ * a custom `--session-dir` is used as-is, with sessions landing flat in it.
+ * Scanning the encoded leaf dir directly would see only that one workspace —
+ * and, because the leaf holds files rather than subdirectories, nothing at
+ * all. So the leaf maps to its parent (the base dir, which yields every
+ * workspace) and any other path is used unchanged.
+ *
+ * A directory literally named `--x--` also maps to its parent; the parent
+ * scan still reaches it as a child directory, so both layouts stay covered.
+ */
+export function scanRootFor(sessionDir: string): string {
+  const base = basename(sessionDir);
+  if (base.length > 4 && base.startsWith("--") && base.endsWith("--")) {
+    return dirname(sessionDir);
+  }
+  return sessionDir;
+}
+
+/**
  * Enumerate sessions without ever reading a whole file.
  *
- * - `root` is the sessions root holding `--<encoded-cwd>--` directories.
- * - Only DIRECT child directories of root, and within each only DIRECT
- *   `*.jsonl` children. Never recurses; companion artifact dirs, non-.jsonl
- *   files, and top-level files are skipped. Per-file failures are skipped.
+ * - `root` is either a base sessions root holding `--<encoded-cwd>--`
+ *   directories, or a flat directory holding `<id>.jsonl` files directly
+ *   (the default encoded-cwd leaf dir, or a custom `--session-dir`). Pass a
+ *   session manager's dir through `scanRootFor` to get the right one.
+ * - DIRECT children only: a child directory's DIRECT `*.jsonl` children, plus
+ *   `*.jsonl` children of root itself. Never recurses past that; companion
+ *   artifact dirs and non-.jsonl files are skipped. Per-file failures are
+ *   skipped.
  * - Per file: one stat + first line (header `{id, cwd}`) + last 64 KB
  *   (signifier). Rows with an unparseable header or missing id are skipped.
  * - `mark` is "ready" iff a valid signifier was found in the tail window;
@@ -165,50 +190,58 @@ export function scanSessions(args: {
   } catch {
     return [];
   }
-  const rows: SessionRow[] = [];
+  // Both layouts at once: a readable child is a directory to descend into one
+  // level; an unreadable child is a file, which counts when it is itself a
+  // session file (".jsonl"). Deduped because a path could be reached twice.
+  const paths = new Set<string>();
   for (const child of top) {
-    const dirPath = join(root, child);
+    const childPath = join(root, child);
     let entries: string[];
     try {
-      entries = fs.readdir(dirPath);
+      entries = fs.readdir(childPath);
     } catch {
-      continue; // not a directory (e.g. a top-level file): skip
+      if (child.endsWith(".jsonl")) paths.add(childPath);
+      continue; // not a directory: not a session
     }
     for (const name of entries) {
       if (!name.endsWith(".jsonl")) continue;
-      const filePath = join(dirPath, name);
-      if (current !== undefined && filePath === current) continue;
-      try {
-        const st = fs.stat(filePath);
-        const header = parseHeader(fs.readHead(filePath, HEAD_BYTES));
-        if (header === undefined) continue;
-        const tail = fs.readTail(filePath, TAIL_BYTES);
-        const signifier = parseSignifierTail(tail, { fromStart: st.size <= TAIL_BYTES });
-        if (signifier !== undefined) {
-          rows.push({
-            path: filePath,
-            id: header.id,
-            cwd: header.cwd,
-            mtimeMs: st.mtimeMs,
-            bytes: st.size,
-            mark: "ready",
-            topic: signifier.topic,
-            summary: signifier.summary,
-            signifier,
-          });
-        } else {
-          rows.push({
-            path: filePath,
-            id: header.id,
-            cwd: header.cwd,
-            mtimeMs: st.mtimeMs,
-            bytes: st.size,
-            mark: "derive",
-          });
-        }
-      } catch {
-        continue; // unreadable file (or a dir named *.jsonl): skip
+      paths.add(join(childPath, name));
+    }
+  }
+
+  const rows: SessionRow[] = [];
+  for (const filePath of paths) {
+    if (current !== undefined && filePath === current) continue;
+    try {
+      const st = fs.stat(filePath);
+      const header = parseHeader(fs.readHead(filePath, HEAD_BYTES));
+      if (header === undefined) continue;
+      const tail = fs.readTail(filePath, TAIL_BYTES);
+      const signifier = parseSignifierTail(tail, { fromStart: st.size <= TAIL_BYTES });
+      if (signifier !== undefined) {
+        rows.push({
+          path: filePath,
+          id: header.id,
+          cwd: header.cwd,
+          mtimeMs: st.mtimeMs,
+          bytes: st.size,
+          mark: "ready",
+          topic: signifier.topic,
+          summary: signifier.summary,
+          signifier,
+        });
+      } else {
+        rows.push({
+          path: filePath,
+          id: header.id,
+          cwd: header.cwd,
+          mtimeMs: st.mtimeMs,
+          bytes: st.size,
+          mark: "derive",
+        });
       }
+    } catch {
+      continue; // unreadable file: skip
     }
   }
   rows.sort((a, b) => b.mtimeMs - a.mtimeMs);

@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   parseSignifierTail,
   resolveSessionId,
+  scanRootFor,
   scanSessions,
   nodeScanFs,
   type ScanFs,
@@ -235,7 +236,10 @@ describe("sessions (task 8: scanSessions)", () => {
       [`${DIR_A}/notes.txt`]: "not a session",
       [`${DIR_A}/companion/`]: "", // placeholder replaced below (a subdir, not a file)
       [`${DIR_B}/ccc.jsonl`]: sessionFile("ccc", "/home/u/other"),
-      [`${ROOT}/top.jsonl`]: sessionFile("top", "/home/u/proj"), // not in a cwd dir: must be skipped
+      // Flat file directly in root: this is the PRODUCTION layout (the default
+      // session dir is the encoded leaf holding files, not subdirectories).
+      [`${ROOT}/top.jsonl`]: sessionFile("top", "/home/u/proj"),
+      [`${ROOT}/top.txt`]: "not a session",
     };
     // Companion subdirectory alongside .jsonl files: model as nested files so
     // readdir sees "companion" as a dir entry inside DIR_A.
@@ -253,20 +257,30 @@ describe("sessions (task 8: scanSessions)", () => {
     return { fs: makeFakeFs(files, mtimes) };
   }
 
-  it("scans two encoded-cwd dirs, direct .jsonl children only", () => {
+  it("scans encoded-cwd dirs AND flat files directly in root", () => {
     const { fs } = setup();
     const rows = scanSessions({ root: ROOT, fs });
     const ids = rows.map((r) => r.id).sort();
-    assert.deepEqual(ids, ["aaa", "bbb", "ccc"]);
+    assert.deepEqual(ids, ["aaa", "bbb", "ccc", "top"]);
   });
 
-  it("skips companion subdirectories, non-jsonl files, and top-level files", () => {
+  it("skips companion subdirectories and non-jsonl files", () => {
     const { fs } = setup();
     const rows = scanSessions({ root: ROOT, fs });
     const paths = rows.map((r) => r.path);
     assert.ok(!paths.some((p) => p.includes("companion")), `companion leaked: ${paths}`);
     assert.ok(!paths.some((p) => p.endsWith(".txt")), `non-jsonl leaked: ${paths}`);
-    assert.ok(!paths.some((p) => p.endsWith("top.jsonl")), `top-level file leaked: ${paths}`);
+  });
+
+  it("production layout: a leaf dir holding files yields rows", () => {
+    // The exact shape of getSessionDir(): files only, no subdirectories.
+    const dir = "/sessions/--home-u-proj--";
+    const files: Record<string, string> = {
+      [`${dir}/aaa.jsonl`]: sessionFile("aaa", "/home/u/proj"),
+      [`${dir}/bbb.jsonl`]: sessionFile("bbb", "/home/u/proj", { signifier: false }),
+    };
+    const rows = scanSessions({ root: dir, fs: makeFakeFs(files) });
+    assert.deepEqual(rows.map((r) => r.id).sort(), ["aaa", "bbb"]);
   });
 
   it("reads header cwd from line 1 and marks ready vs derive", () => {
@@ -295,19 +309,19 @@ describe("sessions (task 8: scanSessions)", () => {
   it("excludes the current session path", () => {
     const { fs } = setup();
     const rows = scanSessions({ root: ROOT, current: `${DIR_A}/aaa.jsonl`, fs });
-    assert.deepEqual(rows.map((r) => r.id).sort(), ["bbb", "ccc"]);
+    assert.deepEqual(rows.map((r) => r.id).sort(), ["bbb", "ccc", "top"]);
   });
 
   it("sorts mtime desc", () => {
     const { fs } = setup();
     const rows = scanSessions({ root: ROOT, fs });
-    assert.deepEqual(rows.map((r) => r.id), ["aaa", "bbb", "ccc"]);
+    assert.deepEqual(rows.map((r) => r.id), ["top", "aaa", "bbb", "ccc"]);
   });
 
   it("applies limit after sorting", () => {
     const { fs } = setup();
     const rows = scanSessions({ root: ROOT, limit: 2, fs });
-    assert.deepEqual(rows.map((r) => r.id), ["aaa", "bbb"]);
+    assert.deepEqual(rows.map((r) => r.id), ["top", "aaa"]);
   });
 
   it("skips files with an unparseable header or missing id", () => {
@@ -318,6 +332,45 @@ describe("sessions (task 8: scanSessions)", () => {
       [`${DIR_A}/noid.jsonl`]: JSON.stringify({ type: "session", cwd: "/x" }),
     };
     assert.deepEqual(scanSessions({ root: ROOT, fs: makeFakeFs(files2) }), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFECT FIX — production scan root (encoded leaf vs base dir)
+// ---------------------------------------------------------------------------
+
+describe("sessions (defect: scanRootFor maps a session manager's dir)", () => {
+  it("maps the default encoded-cwd leaf to the base sessions dir", () => {
+    assert.equal(
+      scanRootFor("/home/u/.pi/agent/sessions/--home-u-git-proj--"),
+      "/home/u/.pi/agent/sessions",
+    );
+  });
+
+  it("keeps a base sessions dir unchanged", () => {
+    assert.equal(scanRootFor("/home/u/.pi/agent/sessions"), "/home/u/.pi/agent/sessions");
+  });
+
+  it("keeps a custom --session-dir unchanged (flat layout)", () => {
+    assert.equal(scanRootFor("/tmp/handoff-copy"), "/tmp/handoff-copy");
+  });
+
+  it("tolerates an encoded name containing dashes", () => {
+    assert.equal(
+      scanRootFor("/home/u/.pi/agent/sessions/--home-u-git-tripful-testing-strategy--"),
+      "/home/u/.pi/agent/sessions",
+    );
+  });
+
+  it("maps a leaf one level below a base dir, so the base scan still finds it", () => {
+    const leaf = "/tmp/copy/--home-u-proj--";
+    assert.equal(scanRootFor(leaf), "/tmp/copy");
+    // The parent scan reaches the leaf as a child directory.
+    const files: Record<string, string> = {
+      [`${leaf}/aaa.jsonl`]: headerLine("aaa", "/home/u/proj"),
+    };
+    const rows = scanSessions({ root: scanRootFor(leaf), fs: makeFakeFs(files) });
+    assert.deepEqual(rows.map((r) => r.id), ["aaa"]);
   });
 });
 

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { formatRow } from "../src/format.ts";
 import { reuse } from "../src/picker.ts";
-import { nodeScanFs, parseSignifierTail, scanSessions } from "../src/sessions.ts";
+import { nodeScanFs, parseSignifierTail, scanRootFor, scanSessions } from "../src/sessions.ts";
 
 // ---------------------------------------------------------------------------
 // TASK 19 — Round-trip fixture (RED)
@@ -105,6 +105,42 @@ describe("round-trip (task 19)", () => {
       });
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // DEFECT REGRESSION: the default session dir is the encoded leaf, which holds
+  // .jsonl files directly. Scanning it must find them (real node:fs, flat root).
+  it("real temp leaf dir (files directly in root) yields rows", () => {
+    const parent = mkdtempSync(join(tmpdir(), "pi-handoff-flatroot-"));
+    try {
+      const leaf = join(parent, "--home-u-proj--");
+      mkdirSync(leaf, { recursive: true });
+      const header = JSON.stringify({ type: "session", id: SESSION_ID, cwd: SESSION_CWD });
+      const signifierLine = JSON.stringify({
+        type: "custom",
+        customType: "handoff",
+        id: "entry-9",
+        parentId: "entry-8",
+        timestamp: CREATED_AT,
+        data: { doc: DOC, topic: TOPIC, summary: SUMMARY, createdAt: CREATED_AT },
+      });
+      writeFileSync(
+        join(leaf, `${SESSION_ID}.jsonl`),
+        [header, signifierLine].join("\n") + "\n",
+      );
+
+      // What index.ts does: the manager's dir goes through scanRootFor.
+      const rows = scanSessions({ root: scanRootFor(leaf), fs: nodeScanFs() });
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]!.id, SESSION_ID);
+      assert.equal(rows[0]!.mark, "ready");
+
+      // And a flat root (a custom --session-dir) is scanned as-is.
+      const flat = scanSessions({ root: leaf, fs: nodeScanFs() });
+      assert.equal(flat.length, 1);
+      assert.equal(flat[0]!.id, SESSION_ID);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
     }
   });
 });
