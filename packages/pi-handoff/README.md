@@ -12,6 +12,12 @@ Published install:
 pi install npm:pi-handoff
 ```
 
+> PENDING (2026-09-27): the npm name `pi-handoff` is **already taken** by an
+> unrelated pi handoff extension (maintainer `akuzmenko`, latest 1.1.9), so the
+> line above would currently install *that* package, not this one. A name must
+> be chosen (e.g. a scoped `@<user>/pi-handoff`) and this section updated before
+> publishing. Until then, install from the local path below.
+
 Local development (path relative to the settings file that declares it):
 
 ```
