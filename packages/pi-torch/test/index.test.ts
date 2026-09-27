@@ -23,7 +23,7 @@ function fakePi(): { pi: ExtensionAPI; commands: Call[]; messageRenderers: Call[
   return { pi: pi as unknown as ExtensionAPI, commands, messageRenderers, entryRenderers };
 }
 
-describe("pi-handoff wiring (phases 3-5)", () => {
+describe("pi-torch wiring (phases 3-5)", () => {
   it("registers exactly 2 commands + 2 renderers without throwing", () => {
     const { pi, commands, messageRenderers, entryRenderers } = fakePi();
     assert.doesNotThrow(() => piHandoff(pi));

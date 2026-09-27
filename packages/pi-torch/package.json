@@ -1,7 +1,7 @@
 {
-  "name": "pi-handoff",
+  "name": "pi-torch",
   "version": "0.1.0",
-  "description": "Session handoff and pickup for pi - sessions are the only storage",
+  "description": "Pass the torch between pi sessions - handoff and pickup with sessions as the only storage",
   "license": "MIT",
   "type": "module",
   "keywords": ["pi-package"],

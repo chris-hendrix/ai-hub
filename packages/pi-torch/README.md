@@ -1,27 +1,24 @@
-# pi-handoff
+# pi-torch
 
-Session handoff and pickup for pi. A handoff is a model-generated document
-stored as a signifier entry **inside the session itself** — sessions are the
-only storage, and no files are ever written.
+Pass the torch from one pi session to the next. A handoff is a model-generated
+document stored as a signifier entry **inside the session itself** — sessions
+are the only storage, and no files are ever written.
 
 ## Install
 
 Published install:
 
 ```
-pi install npm:pi-handoff
+pi install npm:pi-torch
 ```
 
-> PENDING (2026-09-27): the npm name `pi-handoff` is **already taken** by an
-> unrelated pi handoff extension (maintainer `akuzmenko`, latest 1.1.9), so the
-> line above would currently install *that* package, not this one. A name must
-> be chosen (e.g. a scoped `@<user>/pi-handoff`) and this section updated before
-> publishing. Until then, install from the local path below.
+> The name is `pi-torch` because `pi-handoff` is taken on npm by an unrelated pi
+> handoff extension (maintainer `akuzmenko`). Don't rename it back.
 
 Local development (path relative to the settings file that declares it):
 
 ```
-"packages": ["../../git/ai-hub/packages/pi-handoff"]
+"packages": ["../../git/ai-hub/packages/pi-torch"]
 ```
 
 Requires interactive (TUI) mode and a selected model.

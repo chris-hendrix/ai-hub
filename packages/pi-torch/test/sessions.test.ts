@@ -383,7 +383,7 @@ describe("sessions (task 10: measured budget over 500 real files)", () => {
   const N = 500;
 
   before(() => {
-    dir = mkdtempSync(join(tmpdir(), "pi-handoff-budget-"));
+    dir = mkdtempSync(join(tmpdir(), "pi-torch-budget-"));
     const dirs = [join(dir, "--home-u-proj--"), join(dir, "--home-u-other--")];
     for (const d of dirs) mkdirSync(d, { recursive: true });
     for (let i = 0; i < N; i++) {

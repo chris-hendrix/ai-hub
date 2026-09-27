@@ -11,7 +11,7 @@
       "prompts": []
     },
     "npm:pi-chrome",
-    "../../git/ai-hub/packages/pi-handoff"
+    "../../git/ai-hub/packages/pi-torch"
   ],
   "subagents": {
     "disableBuiltins": true,

@@ -63,7 +63,7 @@ describe("round-trip (task 19)", () => {
   });
 
   it("real temp dir: genuine .jsonl session file round-trips through the real reader", () => {
-    const root = mkdtempSync(join(tmpdir(), "pi-handoff-roundtrip-"));
+    const root = mkdtempSync(join(tmpdir(), "pi-torch-roundtrip-"));
     try {
       const encDir = join(root, "--home-u-proj--");
       mkdirSync(encDir, { recursive: true });
@@ -111,7 +111,7 @@ describe("round-trip (task 19)", () => {
   // DEFECT REGRESSION: the default session dir is the encoded leaf, which holds
   // .jsonl files directly. Scanning it must find them (real node:fs, flat root).
   it("real temp leaf dir (files directly in root) yields rows", () => {
-    const parent = mkdtempSync(join(tmpdir(), "pi-handoff-flatroot-"));
+    const parent = mkdtempSync(join(tmpdir(), "pi-torch-flatroot-"));
     try {
       const leaf = join(parent, "--home-u-proj--");
       mkdirSync(leaf, { recursive: true });

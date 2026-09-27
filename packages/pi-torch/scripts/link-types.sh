@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dev-only: link locally installed pi types into packages/pi-handoff/node_modules
+# Dev-only: link locally installed pi types into packages/pi-torch/node_modules
 # without npm/network. Idempotent. Fails loudly if a target is missing.
 set -euo pipefail
 
