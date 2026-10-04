@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "1.0.2",
   "theme": "dark",
   "defaultProvider": "opencode-go",
   "defaultModel": "opencode-go/muse-spark-1.3-contributor",
@@ -10,21 +10,22 @@
       "source": "npm:pi-subagents",
       "prompts": []
     },
-    "npm:pi-chrome"
+    "npm:pi-chrome",
+    "../../git/ai-hub/packages/pi-torch"
   ],
   "subagents": {
     "disableBuiltins": true,
     "agentOverrides": {
       "deep": {
-        "model": "opencode-go/glm-5.3-flash",
+        "model": "opencode-go/deepseek-v4.1-flash",
         "thinking": "high"
       },
       "mid": {
-        "model": "opencode-go/muse-spark-1.3-contributor",
+        "model": "opencode-go/space-bunny-free",
         "thinking": "high"
       },
       "fast": {
-        "model": "opencode-go/muse-spark-1.3-contributor",
+        "model": "opencode-go/space-bunny-free",
         "thinking": "low"
       },
       "view": {
