@@ -7,6 +7,7 @@ set -euo pipefail
 #   rpi status <plan-file> <planned|in-progress|completed>
 #   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
 #   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
+#   rpi dev    <plan-file> <task-id> "<one line>" [--report <path>]  # record a deviation on a task
 #   rpi pickup [path] [--list]        # resolve a handoff: latest, or given path
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -128,6 +129,25 @@ $sid"
     fi
   } > "$outpath"
 
+  # layer 1 is the human's scan layer — warn, never fail, when it grows past its budget
+  if [[ "$subdir" == "plans" ]]; then
+    local l1_lines l1_prose
+    read -r l1_lines l1_prose < <(printf '%s\n' "$body" | awk '
+      /^## Checklist/ { exit }
+      /^```/ { fence = !fence; next }
+      fence { next }
+      { n++ }
+      /^[[:space:]]*$/ { next }
+      /^#/ { next }
+      /^[-|>]/ { next }
+      { p++ }
+      END { printf "%d %d\n", n + 0, p + 0 }
+    ')
+    if [[ "${l1_lines:-0}" -gt 35 ]]; then
+      echo "rpi write: L1 is ${l1_lines} lines (budget 35), ${l1_prose} of them prose — layer 1 is the scan layer, move justification below the fold" >&2
+    fi
+  fi
+
   rel "$outpath"
 }
 
@@ -202,14 +222,25 @@ cmd_next() {
     echo "Usage: rpi next <plan-file>" >&2; exit 1
   fi
   local file; file="$(resolve_plan "$1")"
-  # print the first unchecked task with its body (indented follow-on lines)
-  awk '
+  # only the checklist region holds tasks — a layer-1 success criterion is not a task.
+  # plans with no `## Checklist` heading (legacy) are scanned whole.
+  local scope=1
+  grep -q '^## Checklist' "$file" || scope=0
+  awk -v scope="$scope" '
+    BEGIN { in_checklist = (scope == 0) }
+    /^## Checklist/ { in_checklist = 1; next }
+    !in_checklist { next }
     /^- \[ \] / { if (found) exit; found=1; print; next }
     found && /^$/ { print; next }
     found && /^[^[:space:]]/ { exit }
     found { print }
   ' "$file"
-  if ! grep -q '^- \[ \]' "$file"; then
+  if ! awk -v scope="$scope" '
+    BEGIN { in_checklist = (scope == 0) }
+    /^## Checklist/ { in_checklist = 1 }
+    in_checklist && /^- \[ \] / { found = 1 }
+    END { exit !found }
+  ' "$file"; then
     echo "(all done)"
   fi
 }
@@ -232,6 +263,51 @@ cmd_done() {
     { print }
   ' "$file" > "$tmp" && mv "$tmp" "$file"
   echo "Task ${task_id} marked complete in $file"
+}
+
+cmd_dev() {
+  if [[ $# -lt 3 ]]; then
+    echo 'Usage: rpi dev <plan-file> <task-id> "<one line>" [--report <path>]' >&2; exit 1
+  fi
+  local file; file="$(resolve_plan "$1")"
+  local task_id="$2" text="$3"
+  shift 3
+  local report=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --report) report="$2"; shift 2 ;;
+      *) echo "rpi dev: unknown option: $1" >&2; exit 1 ;;
+    esac
+  done
+  if ! grep -Eq "^- \[[ x]\] .*(\*\*)?[Tt]ask ${task_id}([:.]|$)" "$file"; then
+    echo "rpi dev: no Task ${task_id} found in $file" >&2; exit 1
+  fi
+  local line="  - dev $(date +%F) — ${text}"
+  if [[ -n "$report" ]]; then line="${line} → ${report}"; fi
+  if grep -Fq "$line" "$file"; then
+    echo "Task ${task_id} already records that deviation in $file"
+    return 0
+  fi
+  local tmp; tmp="$(mktemp)"
+  # land it as the last indented line of the task's block (so `rpi next` still
+  # prints it with the task). Blank lines are held back until the block's end is
+  # known, so trailing spacing does not end up above the deviation.
+  awk -v tid="$task_id" -v line="$line" '
+    function flush() {
+      if (in_task && !inserted) { print line; inserted = 1 }
+      for (i = 0; i < blanks; i++) print ""
+      blanks = 0
+    }
+    {
+      if (in_task && /^[[:space:]]*$/) { blanks++; next }
+      if (in_task && /^[^[:space:]]/) { flush(); in_task = 0 }
+      else if (blanks) { for (i = 0; i < blanks; i++) print ""; blanks = 0 }
+      print
+      if (!in_task && /^- \[[ x]\] / && $0 ~ ("([*][*])?[Tt]ask " tid "([:.]|$)")) in_task = 1
+    }
+    END { flush() }
+  ' "$file" > "$tmp" && mv "$tmp" "$file"
+  echo "Task ${task_id} deviation recorded in $file"
 }
 
 resolve_plan() {
@@ -281,16 +357,18 @@ usage() {
 rpi — deterministic helpers for the rpi skill
 
 Usage:
-  rpi write  --type {plan|review|implement|handoff} --topic "..." [--ticket N]  # body on stdin
+  rpi write  <plans|reviews|implementations|handoffs> --topic "..." [--ticket N]  # body on stdin
   rpi status <plan-file> <planned|in-progress|completed|handed-off>
   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
+  rpi dev    <plan-file> <task-id> "<one line>" [--report <path>]  # record a deviation on a task
 
 Examples:
   printf '# My plan\n...' | rpi write plans --topic "Auth refactor"
   rpi status .rpi/plans/2026-08-30-auth-refactor.md in-progress
   rpi next .rpi/plans/2026-08-30-auth-refactor.md
   rpi done .rpi/plans/2026-08-30-auth-refactor.md 2
+  rpi dev .rpi/plans/2026-08-30-auth-refactor.md 2 "tsc ran on the host; the container was down"
   rpi pickup .rpi/handoffs/2026-05-24-auth-refactor.md
 USAGE
 }
@@ -316,6 +394,7 @@ main() {
     status) cmd_status "$@" ;;
     next)   cmd_next "$@" ;;
     done)   cmd_done "$@" ;;
+    dev)    cmd_dev "$@" ;;
     pickup) cmd_pickup "$@" ;;
     -h|--help|help) usage; exit 0 ;;
     *) echo "rpi: unknown subcommand: $cmd" >&2; usage >&2; exit 1 ;;

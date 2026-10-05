@@ -2,7 +2,7 @@
 
 Persist via `rpi write <subdir> --topic "<title>"` — body on stdin (first arg is the subdir: `plans|reviews|implementations|handoffs`). If the last message is already the artifact, pass it through unchanged — don't regenerate. Never use the file write tool for `.rpi/` docs — always this CLI.
 
-The script owns everything mechanical: filename (`timestamp[-ticket-]title`), frontmatter, and subdirs. Frontmatter varies by type — `status` only for plans (`planned`) and handoffs (`handed-off`); `sessions` chain only for handoffs. Flags: `--ticket`, `--status`.
+The script owns everything mechanical: filename (`timestamp[-ticket-]title`), frontmatter, and subdirs. Frontmatter varies by type — `status` only for plans (`planned`) and handoffs (`handed-off`); `sessions` chain only for handoffs. Flags: `--ticket`, `--status`. Plans also get a non-fatal layer-1 budget warning (35 lines before `## Checklist`, fenced blocks excluded).
 
 | Subdir | Notes |
 |--------|-------|

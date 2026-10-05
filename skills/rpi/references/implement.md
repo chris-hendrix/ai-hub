@@ -5,8 +5,9 @@ Execute a plan's checklist. `implement all <plan>` is the default; name a phase 
 Loop, per task:
 
 1. **Pop** — `rpi next <plan>` to get the next task with its RED/GREEN/CHECK block.
-2. **Implement** — hand a cheap subagent the task block plus the plan document (it needs the Architecture, not just the task). It executes in the shape the task defines (RED present → test-first) and must run CHECK and report the result.
+2. **Implement** — hand a cheap subagent the task block, the `D` rows it touches, and only the layer-2 sections the task needs — not the whole plan. It executes in the shape the task defines (RED present → test-first) and must run CHECK and report the result.
 3. **Verify & mark** — re-run the task's CHECK command yourself, then `rpi done <plan> <task-id>`. The orchestrator flips the checkbox, never the subagent — state advances only on verified results, not self-reports.
+4. **On a deviation** — `rpi dev <plan> <task-id> "<one line>"` appends it to the task. Anything longer goes in `.rpi/implement/<task>.md`, and the line ends in that path.
 
 On failure: retry once with the failure output as context; if it still fails, stop and surface to the user — never mark complete or work around the plan.
 
