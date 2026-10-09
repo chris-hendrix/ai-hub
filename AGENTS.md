@@ -59,6 +59,8 @@ This repo houses whole home dirs, so secrets and runtime live **inside** the wor
 | `harness/.opencode/node_modules/` | opencode plugin deps (`@opencode-ai/plugin`) | `bun install` |
 | `harness/.pi/agent/bin/` | pi helper binaries (`rg`, `fd`) | regenerated |
 | `harness/.pi/agent/npm/` | pi extension install dir | regenerated from `settings.json:packages` |
+| `harness/.pi/agent/install/` | pi self-update runtime (`releases/`, `staging/`) | regenerated on `pi update` |
+| `harness/.pi/agent/mode-state.json` | last-used pi tier mode (session resume) | written by `extensions/modes.ts` |
 | `*.env`, `*.key`, `*.pem`, `*.token` | generic secrets | — |
 
 Verify before pushing: `git ls-files | grep -E "auth\.json|models-store|\.env"` should be empty. `git check-ignore harness/.pi/agent/auth.json` should match.
@@ -109,5 +111,5 @@ Backups from `migrate` are at `~/.opencode.bak-*`, `~/.config/opencode.bak-*`, `
 
 - Do not commit `bin/`, `node_modules/`, `package*.json`, `bun.lock` under `harness/.opencode/` — they are opencode-managed runtime.
 - Do not commit `npm/` or `bin/` under `harness/.pi/agent/` — pi-managed runtime.
-- `harness/.pi/agent/settings.json`, `harness/.pi/agent/agents/*.md`, and `harness/.pi/agent/extensions/*.ts` are living config — editing tiers (agentOverrides doubles as the mode list), tier models, or instructions is a normal part of a change. Commit them together with the feature that prompted them; don't treat them as off-limits or ask before committing. (Only the gitignored secrets/runtime listed above are never committed.)
+- `harness/.pi/agent/settings.json`, `harness/.pi/agent/agents/*.md`, and `harness/.pi/agent/extensions/*.ts` are living config — editing tiers (agentOverrides doubles as the mode list; `hiddenModes` keeps a tier for subagents but out of the mode cycle), tier models, status `color`s/`block` badges, or instructions is a normal part of a change. Commit them together with the feature that prompted them; don't treat them as off-limits or ask before committing. (Only the gitignored secrets/runtime listed above are never committed.)
   - `agentOverrides.<tier>.model` may also change at runtime when a mode's model is switched (`/model` while in a mode) — such diffs are expected and safe to commit.

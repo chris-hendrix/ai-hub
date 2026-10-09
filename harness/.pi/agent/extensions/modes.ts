@@ -1,5 +1,6 @@
 /**
- * Modes extension — tier personas (deep / mid / fast / view).
+ * Modes extension — tier personas (deep / mid / fast, plus any other
+ * subagents tier that is not hidden).
  *
  * Modes are derived from tiers: every subagents.agentOverrides.<tier> entry
  * automatically becomes a mode of the same name (add a `foobar` tier and you
@@ -15,10 +16,32 @@
  * Explicit `instructions` / `tools` on a mode definition override the file,
  * so the agent file stays the single source of truth for each tier.
  *
- *   Shift+Tab                   — cycle modes (vanilla → tiers → vanilla)
+ *   Shift+Tab                   — cycle modes (vanilla → visible modes → vanilla)
  *   /mode                       — show current mode + list
  *   /mode <name> | /mode off    — switch / restore defaults
  *   pi --preset <name>          — start in a mode
+ *
+ * Start-mode precedence: `--preset` → settings `defaultMode` → the mode you
+ * were last in → vanilla. The last mode is written to <agentDir>/mode-state.json
+ * on every switch (machine-local runtime, gitignored), so a bare `pi` reopens
+ * where you left off; leaving a mode behind is remembered as vanilla. Leave
+ * `defaultMode` unset for resume, set it to pin the start mode instead.
+ *
+ * Colors: a mode may carry an optional `color` — a theme token ("accent",
+ * "mdLink", "success", …) or a concrete color ("#7aa2f7", "oklch(250 60% 55%)",
+ * 39). It tints the `mode:<name>` status line; no color means the accent token.
+ * Set it per tier in the agent file frontmatter (`color: mdLink`) or per mode in
+ * the settings `modes` block — the settings value wins.
+ *
+ * `block: true` (agent frontmatter, or `modes.<name>.block` in settings) paints
+ * the color as a background badge instead of coloring the text, with black or
+ * white text — whichever contrasts better with that background. Badges are
+ * opt-in: a filled block in an always-visible footer glares, and a hand-picked
+ * color needs per-background tuning, where theme tokens on text do not.
+ *
+ * hiddenModes: tier names (a settings list) that stay tiers for subagents but
+ * are not offered as modes — no Shift+Tab entry, no /mode listing. They can
+ * still be entered by name with /mode <name> or --preset.
  *
  * Changing the model while in a mode (via /model or Ctrl+P) persists the new
  * value as the default for that tier — it writes back to
@@ -27,31 +50,67 @@
  * and never written back; every mode entry re-applies the tier's configured
  * thinking from subagents.agentOverrides.<tier>.thinking.
  *
- * Shift+Tab cycles through vanilla (no mode) and all defined modes.
- * Vanilla = plain pi, no extra instructions, original tools/model restored.
- *
- * Settings-level default: add "defaultMode": "fast" at the top level of
- * settings.json to have pi start in that mode. --preset still wins.
+ * Shift+Tab cycles through vanilla (no mode) and every visible mode. Vanilla =
+ * plain pi: no extra instructions, and the original model/tools/thinking return.
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Key } from "@earendil-works/pi-tui";
+import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI, type ExtensionContext, type ThemeColor } from "@earendil-works/pi-coding-agent";
+import { Key, colorToRgb, parseColor, rgbColor, type Color } from "@earendil-works/pi-tui";
 
 /** Vanilla entry shown in /mode and the Shift+Tab cycle — no mode active. */
 const VANILLA_LABEL = "(default)";
+
+/** Background-badge text colors, picked per background by contrast. */
+const BLACK = rgbColor(0, 0, 0);
+const WHITE = rgbColor(255, 255, 255);
+
+/** sRGB channel → linear light, as WCAG relative luminance wants it. */
+const toLinear = (channel: number): number => {
+	const c = channel / 255;
+	return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+
+function relativeLuminance(color: Color): number {
+	const { r, g, b } = colorToRgb(color);
+	return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/** Black or white text — whichever contrasts better against the given background. */
+function contrastText(bg: Color): Color {
+	const l = relativeLuminance(bg);
+	return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? BLACK : WHITE;
+}
+
+/** Theme tokens accepted as a mode color; anything else is parsed as a concrete color. */
+const THEME_COLOR_TOKENS = new Set<string>([
+	"accent", "border", "borderAccent", "borderMuted", "success", "error", "warning", "muted", "dim", "text",
+	"thinkingText", "scrollbarTrack", "scrollbarThumb", "searchMatchText", "userMessageText",
+	"customMessageText", "customMessageLabel", "toolTitle", "toolOutput", "mdHeading", "mdLink", "mdLinkUrl",
+	"mdCode", "mdCodeBlock", "mdCodeBlockBorder", "mdQuote", "mdQuoteBorder", "mdHr", "mdListBullet",
+	"toolDiffAdded", "toolDiffRemoved", "toolDiffContext", "syntaxComment", "syntaxKeyword", "syntaxFunction",
+	"syntaxVariable", "syntaxString", "syntaxNumber", "syntaxType", "syntaxOperator", "syntaxPunctuation",
+	"thinkingOff", "thinkingMinimal", "thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh",
+	"thinkingMax", "bashMode",
+]);
 
 interface Mode {
 	model?: string;
 	thinkingLevel?: string;
 	tools?: string[];
 	instructions?: string;
+	/** Status-line color: a theme token ("mdLink") or a concrete color ("#7aa2f7", "oklch(250 60% 55%)", 39). */
+	color?: string | number;
+	/** Paint `color` as a background badge instead of coloring the status text. */
+	block?: boolean;
 }
 
 interface SettingsShape {
 	defaultProvider?: string;
 	defaultMode?: string;
+	/** Tier names kept as tiers for subagents but left out of the mode cycle and /mode listing. */
+	hiddenModes?: string[];
 	/** Optional explicit mode deltas, merged over the tier-derived modes. */
 	modes?: Record<string, Mode>;
 	subagents?: { agentOverrides?: Record<string, { model?: string; thinking?: string }> };
@@ -105,6 +164,7 @@ export default function (pi: ExtensionAPI) {
 	let overrides: Record<string, { model?: string; thinking?: string }> = {};
 	let defaultProvider: string | undefined;
 	let defaultMode: string | undefined;
+	let hidden = new Set<string>();
 	let active: string | undefined;
 	let original: { model: Parameters<typeof pi.setModel>[0] | undefined; tools: string[]; thinking: string } | undefined;
 	let applyingModel = false;
@@ -135,21 +195,72 @@ export default function (pi: ExtensionAPI) {
 		overrides = s.subagents?.agentOverrides ?? {};
 		defaultProvider = s.defaultProvider;
 		defaultMode = s.defaultMode;
+		hidden = new Set(s.hiddenModes ?? []);
 		// Track insertion order from global tiers for the cycle shortcut.
 		const globalRaw = readJson(join(getAgentDir(), "settings.json")) as SettingsShape;
 		modeOrder = Object.keys(buildModes(globalRaw));
 	};
 
-	/** Resolve "deep" | "mid" | "fast" | "view" (or a literal provider/id) to {provider, id}. */
+	/**
+	 * Modes offered by Shift+Tab and /mode: global tier order first, then any
+	 * extra mode the settings define, minus hiddenModes.
+	 */
+	function visibleModeNames(): string[] {
+		const ordered = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
+		const names = [...ordered, ...Object.keys(modes)];
+		return names.filter((n, i) => names.indexOf(n) === i && !hidden.has(n));
+	}
+
+	/** Machine-local "where did I leave off" — <agentDir>/mode-state.json. */
+	const modeStatePath = () => join(getAgentDir(), "mode-state.json");
+
+	function readLastMode(): string | undefined {
+		const value = readJson(modeStatePath()).lastMode;
+		return typeof value === "string" && value ? value : undefined;
+	}
+
+	function writeLastMode(name: string | undefined): void {
+		try {
+			writeFileSync(modeStatePath(), `${JSON.stringify({ lastMode: name ?? null }, null, 2)}\n`);
+		} catch {
+			// best-effort; a failed write must never break a mode switch
+		}
+	}
+
+	/** Style the status text in a mode's color, else the accent, bold. With
+	 * `block`, the color becomes the background and the text is black or white,
+	 * whichever contrasts better. */
+	function paint(name: string, text: string, ctx: ExtensionContext): string {
+		const theme = ctx.ui.theme;
+		const file = readAgentFile(name);
+		const raw = modes[name]?.color ?? file.color;
+		const block = modes[name]?.block ?? file.block ?? false;
+		let color: Color | undefined;
+		if (typeof raw === "string" && THEME_COLOR_TOKENS.has(raw)) {
+			color = theme.colors[raw as ThemeColor];
+		} else if (raw !== undefined) {
+			try {
+				color = parseColor(raw);
+			} catch {
+				color = undefined; // unusable color string — fall back to accent
+			}
+		}
+		const base = color ?? theme.colors.accent;
+		if (!block) return theme.style(text, { fg: base, bold: true });
+		return theme.style(` ${text} `, { fg: contrastText(base), bg: base, bold: true });
+	}
+
+	/** Resolve "deep" | "mid" | "fast" (or a literal provider/id) to {provider, id}. */
 	function resolveModelSpec(spec: string): { provider: string; id: string } {
-		if (!spec.includes("/") && overrides[spec]?.model) spec = overrides[spec].model;
+		const tierModel = overrides[spec]?.model;
+		if (!spec.includes("/") && tierModel) spec = tierModel;
 		const slash = spec.indexOf("/");
 		if (slash > 0) return { provider: spec.slice(0, slash), id: spec.slice(slash + 1) };
 		return { provider: defaultProvider ?? "deepseek", id: spec };
 	}
 
-	/** Read a tier agent file (<agentDir>/agents/<name>.md): frontmatter tools + body. */
-	function readAgentFile(name: string): { tools?: string[]; body?: string } {
+	/** Read a tier agent file (<agentDir>/agents/<name>.md): frontmatter tools + color/block, and body. */
+	function readAgentFile(name: string): { tools?: string[]; color?: string | number; block?: boolean; body?: string } {
 		if (!/^[A-Za-z0-9_-]+$/.test(name)) return {};
 		const p = join(getAgentDir(), "agents", `${name}.md`);
 		let raw: string;
@@ -196,8 +307,23 @@ export default function (pi: ExtensionAPI) {
 			}
 			break;
 		}
+		let color: string | number | undefined;
+		let block: boolean | undefined;
+		const scalar = (key: string): string | undefined => {
+			for (const line of fmLines) {
+				const m = line?.match(new RegExp(`^${key}:\\s*(.+)$`));
+				if (!m) continue;
+				const value = (m[1] ?? "").trim().replace(/^["']|["']$/g, "");
+				if (value) return value;
+			}
+			return undefined;
+		};
+		const colorValue = scalar("color");
+		if (colorValue) color = /^\d+$/.test(colorValue) ? Number(colorValue) : colorValue;
+		const blockValue = scalar("block")?.toLowerCase();
+		if (blockValue) block = blockValue === "true" || blockValue === "yes" || blockValue === "1";
 		const body = bodyLines.join("\n").trim() || undefined;
-		return { tools, body };
+		return { tools, color, block, body };
 	}
 
 	function persistOverride(tier: string, patch: { model?: string; thinking?: string }) {
@@ -254,13 +380,15 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		active = name;
-		ctx.ui.setStatus("mode", ctx.ui.theme.fg("accent", `mode:${name}`));
+		writeLastMode(name);
+		ctx.ui.setStatus("mode", paint(name, `mode:${name}`, ctx));
 		ctx.ui.notify(`Mode: ${name}`, "info");
 		return true;
 	}
 
 	async function restore(ctx: ExtensionContext) {
 		active = undefined;
+		writeLastMode(undefined);
 		if (original) {
 			if (original.model) await pi.setModel(original.model);
 			pi.setActiveTools(original.tools);
@@ -280,23 +408,20 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const name = args?.trim();
 			if (!name) {
-				const all = [VANILLA_LABEL, ...Object.keys(modes)];
+				const all = [VANILLA_LABEL, ...visibleModeNames()];
 				const list = all.map((m) => (m === (active ?? VANILLA_LABEL) ? `${m} (active)` : m)).join(", ");
 				ctx.ui.notify(`Modes: ${list}`, "info");
 				return;
 			}
 			if (name === "off" || name === VANILLA_LABEL || name === "default" || name === "vanilla") return restore(ctx);
 			if (!(await applyMode(name, ctx))) {
-				ctx.ui.notify(`Unknown mode "${name}". Available: ${Object.keys(modes).join(", ") || "(none)"}`, "error");
+				ctx.ui.notify(`Unknown mode "${name}". Available: ${visibleModeNames().join(", ") || "(none)"}`, "error");
 			}
 		},
 	});
 
-	// Shift+Tab cycles: (default) → tiers in settings order → (default)
-	const getCycleNames = (): string[] => {
-		const names = modeOrder.length > 0 ? modeOrder : Object.keys(modes).sort();
-		return [VANILLA_LABEL, ...names];
-	};
+	// Shift+Tab cycles: (default) → visible modes in settings order → (default)
+	const getCycleNames = (): string[] => [VANILLA_LABEL, ...visibleModeNames()];
 
 	pi.registerShortcut(Key.shift("tab"), {
 		description: "Cycle modes",
@@ -314,17 +439,21 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Refresh config (picks up project-level overrides) and honor --preset
-	// or the persisted defaultMode.
+	// Refresh config (projects can override tiers) and pick the start mode:
+	// --preset → defaultMode → the mode we left off in → vanilla.
 	pi.on("session_start", async (_event, ctx) => {
+		refresh(ctx.cwd);
 		const flag = pi.getFlag("preset");
-		if (typeof flag === "string" && flag && modes[flag]) {
-			await applyMode(flag, ctx);
-			return;
+		if (typeof flag === "string" && flag) {
+			if (await applyMode(flag, ctx)) return;
+			ctx.ui.notify(`Unknown mode "${flag}" (--preset). Available: ${visibleModeNames().join(", ") || "(none)"}`, "warning");
 		}
-		if (defaultMode && modes[defaultMode] && !active) {
-			await applyMode(defaultMode, ctx);
-		}
+		// A session that is already in a mode (new/resume) keeps it.
+		if (active) return;
+		const pinned = defaultMode && modes[defaultMode] ? defaultMode : undefined;
+		const last = readLastMode();
+		const start = pinned ?? (last && modes[last] ? last : undefined);
+		if (start) await applyMode(start, ctx);
 	});
 
 	// Inject the active mode's instructions into the system prompt each turn.
