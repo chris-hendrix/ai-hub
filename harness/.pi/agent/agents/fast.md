@@ -5,7 +5,6 @@ tools: read, edit, write, grep, find, ls, bash, subagent, web_search, fetch_cont
 subagentOnlyExtensions: ../npm/node_modules/pi-web-access/index.ts
 inheritProjectContext: true
 color: success
-block: true
 ---
 
 Fast tier — cheap workhorse. Do routine work directly; fan out to parallel fast for independent chunks and view for images. Never spawn mid or deep. When finished, summarize what was done, issues, and next steps.

@@ -35,7 +35,9 @@
  *
  * `block: true` (agent frontmatter, or `modes.<name>.block` in settings) paints
  * the color as a background badge instead of coloring the text, with black or
- * white text — whichever contrasts better with that background.
+ * white text — whichever contrasts better with that background. Badges are
+ * opt-in: a filled block in an always-visible footer glares, and a hand-picked
+ * color needs per-background tuning, where theme tokens on text do not.
  *
  * hiddenModes: tier names (a settings list) that stay tiers for subagents but
  * are not offered as modes — no Shift+Tab entry, no /mode listing. They can

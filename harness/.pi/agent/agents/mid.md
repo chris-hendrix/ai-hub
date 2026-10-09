@@ -5,7 +5,6 @@ tools: read, edit, write, grep, find, ls, bash, subagent, web_search, fetch_cont
 subagentOnlyExtensions: ../npm/node_modules/pi-web-access/index.ts
 inheritProjectContext: true
 color: mdLink
-block: true
 ---
 
 Mid tier — medium complexity. Handle medium work yourself; fan out mechanical edits and lookups to fast (parallel fast is encouraged), images to view. Never spawn mid or deep. When finished, summarize what was done, issues, and next steps.
