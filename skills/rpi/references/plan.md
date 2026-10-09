@@ -2,6 +2,8 @@
 
 Plans are persistent, self-sufficient documents — all context needed to implement without conversation history. One file, three layers: **scan → briefing → tasks**.
 
+**No paragraphs.** A plan is claims, labeled bullets, tables, trees and fenced diagrams. A wall of text is a defect at any layer, and layer 1 has the tightest budget.
+
 **No code is written during planning** — implementation belongs to `implement`.
 
 ## Process
@@ -14,7 +16,7 @@ Plans are persistent, self-sufficient documents — all context needed to implem
 
 The only layer the human has to read. **No "because":** every justification lives in layer 2 under the same ID.
 
-Forms only — claims (one line each), table, mermaid, tree, one mockup. **No paragraph over 2 lines.** A wall of text here is a defect.
+Forms only — claims (one line each), table, mermaid, tree, one-line bullets, one mockup. **No paragraph over 2 lines.**
 
 - **What changes** — 2–3 lines, user-visible: what it is now, what it becomes.
 - **Decisions** — `D1…Dn`, one line each: the call, never the reasoning. Cap 7; more means two plans.
@@ -24,9 +26,18 @@ Forms only — claims (one line each), table, mermaid, tree, one mockup. **No pa
 
 ## Layer 2 — briefing
 
-The implementer's briefing, handed to a subagent with each task — **bytes here × task count is the cost.** Prose is allowed, but every paragraph opens with its claim.
+The implementer's briefing, handed to a subagent with each task — **bytes here × task count is the cost.** Same forms as layer 1, more of them, **3 lines maximum per entry** and a labeled field per line.
 
-Keyed to layer 1, in this order: **Decision records** (`D1…` — why, `Rejected:`, `Revisit if:`), **Considered and cut**, **Phase modes** (phase · tasks · verification · why), **Done means**, **Files, annotated**, **Other surfaces**, **Prerequisites**, **Branch & commit**.
+| Section | Form |
+|---|---|
+| **Decision records** | one block per `D1…`: `Why:` · `Rejected:` · `Measured:` · `Revisit if:` — omit a field only when it is genuinely empty |
+| **Considered and cut** | one line per cut: `**what** — why it was cut` |
+| **Phase modes** | the table: phase · tasks · verification · why |
+| **Done means** | one criterion per line, no prose — every `CHECK` should trace to one |
+| **Files, annotated** | the layer-1 tree, now with a per-file reason — never a paragraph |
+| **Other surfaces** | one line each: surface — why it decides nothing new |
+| **Prerequisites** | one line each |
+| **Branch & commit** | one line each: branch · commit shape · PR |
 
 ## Layer 3 — tasks
 
