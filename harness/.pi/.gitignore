@@ -12,6 +12,7 @@ agent/skills/*
 
 # Runtime (regenerated)
 agent/bin/
+agent/install/
 agent/npm/
 agent/missions/
 agent/pi-subagents/
