@@ -25,7 +25,7 @@ Note: `view` was merged/removed — image analysis is handled by `deep`/`fast`.
 
 ## Pi tier modes
 
-pi (`harness/.pi/agent/`) has four tier modes — deep, mid, fast, view — switched via Shift+Tab or `/mode`. Each tier with a same-named agent file (`agent/agents/*.md`) gets that file as the single source of truth for its instructions and tools. Each mode resolves its model through `subagents.agentOverrides.<tier>.model` in `agent/settings.json`. Delegation is down-only: deep → mid/fast/view, mid → fast/view, fast → fast/view, view → none.
+pi (`harness/.pi/agent/`) has three tier modes — deep, mid, fast — switched via Shift+Tab or `/mode`, and it reopens in whichever one you left off in. Each tier with a same-named agent file (`agent/agents/*.md`) gets that file as the single source of truth for its instructions, tools, and status `color`; each mode resolves its model through `subagents.agentOverrides.<tier>.model` in `agent/settings.json`. Start mode follows `--preset` → `defaultMode` → last mode (remembered in `agent/mode-state.json`) → vanilla. A mode's `color` — agent frontmatter `color: mdLink`, or `modes.<name>.color: "#7aa2f7"` in settings — tints the `mode:<name>` status line. Delegation is down-only: deep → mid/fast, mid → fast, fast → fast; the `view` tier still serves subagents but is listed in `hiddenModes`, so it stays out of the mode cycle.
 
 ## Skills
 
