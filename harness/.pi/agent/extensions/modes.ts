@@ -227,29 +227,27 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	/** Style the status text in a mode's color — theme token or concrete color, else the accent token.
-	 * With `block`, the color becomes the background and the text is black or
-	 * white, whichever contrasts better. */
+	/** Style the status text in a mode's color, else the accent, bold. With
+	 * `block`, the color becomes the background and the text is black or white,
+	 * whichever contrasts better. */
 	function paint(name: string, text: string, ctx: ExtensionContext): string {
 		const theme = ctx.ui.theme;
 		const file = readAgentFile(name);
 		const raw = modes[name]?.color ?? file.color;
 		const block = modes[name]?.block ?? file.block ?? false;
-		if (raw === undefined) return theme.fg("accent", text);
+		let color: Color | undefined;
 		if (typeof raw === "string" && THEME_COLOR_TOKENS.has(raw)) {
-			const token = raw as ThemeColor;
-			if (!block) return theme.fg(token, text);
-			const bg = theme.colors[token];
-			return theme.style(` ${text} `, { fg: contrastText(bg), bg, bold: true });
+			color = theme.colors[raw as ThemeColor];
+		} else if (raw !== undefined) {
+			try {
+				color = parseColor(raw);
+			} catch {
+				color = undefined; // unusable color string — fall back to accent
+			}
 		}
-		let color: Color;
-		try {
-			color = parseColor(raw);
-		} catch {
-			return theme.fg("accent", text);
-		}
-		if (!block) return theme.style(text, { fg: color });
-		return theme.style(` ${text} `, { fg: contrastText(color), bg: color, bold: true });
+		const base = color ?? theme.colors.accent;
+		if (!block) return theme.style(text, { fg: base, bold: true });
+		return theme.style(` ${text} `, { fg: contrastText(base), bg: base, bold: true });
 	}
 
 	/** Resolve "deep" | "mid" | "fast" (or a literal provider/id) to {provider, id}. */
