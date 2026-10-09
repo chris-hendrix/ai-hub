@@ -6,7 +6,7 @@ Review against these dimensions:
 
 - **Completeness** — covers the goal, requirements, edge cases.
 - **Feasibility** — architecture works, matches the codebase as it exists.
-- **Clarity** — executable by an agent with no conversation history; no ambiguity.
+- **Clarity** — executable by an agent with no conversation history; no ambiguity; no paragraphs anywhere (a wall of text is a finding, tightest in layer 1).
 - **Verifiability** — every task has a CHECK that proves it.
 - **Scope** — missing pieces and over-building.
 - **Sequencing** — tasks runnable in order; dependencies hold.

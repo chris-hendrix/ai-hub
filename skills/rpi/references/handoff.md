@@ -4,7 +4,7 @@ Summarize the current conversation into a handoff for another agent. **Writing i
 
 The next agent has **zero conversation history** — the handoff is all it gets. Cover:
 
-1. **What went before:** goals, progress, key decisions (with `file:line` refs), blockers and resolutions.
+1. **What went before:** goals, progress, key decisions (with `file:line` refs), blockers and resolutions — and where the plan changed, as a table: `Plan | As built | Why`.
 2. **Where things stand:** current workspace state (uncommitted changes, branches), risks, relevant `file:line` refs.
 3. **What comes next:** concrete next steps in priority order, open questions, what "done" looks like.
 
