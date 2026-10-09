@@ -33,6 +33,10 @@
  * Set it per tier in the agent file frontmatter (`color: mdLink`) or per mode in
  * the settings `modes` block — the settings value wins.
  *
+ * `block: true` (agent frontmatter, or `modes.<name>.block` in settings) paints
+ * the color as a background badge instead of coloring the text, with black or
+ * white text — whichever contrasts better with that background.
+ *
  * hiddenModes: tier names (a settings list) that stay tiers for subagents but
  * are not offered as modes — no Shift+Tab entry, no /mode listing. They can
  * still be entered by name with /mode <name> or --preset.
@@ -51,10 +55,31 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI, type ExtensionContext, type ThemeColor } from "@earendil-works/pi-coding-agent";
-import { Key, parseColor } from "@earendil-works/pi-tui";
+import { Key, colorToRgb, parseColor, rgbColor, type Color } from "@earendil-works/pi-tui";
 
 /** Vanilla entry shown in /mode and the Shift+Tab cycle — no mode active. */
 const VANILLA_LABEL = "(default)";
+
+/** Background-badge text colors, picked per background by contrast. */
+const BLACK = rgbColor(0, 0, 0);
+const WHITE = rgbColor(255, 255, 255);
+
+/** sRGB channel → linear light, as WCAG relative luminance wants it. */
+const toLinear = (channel: number): number => {
+	const c = channel / 255;
+	return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+
+function relativeLuminance(color: Color): number {
+	const { r, g, b } = colorToRgb(color);
+	return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/** Black or white text — whichever contrasts better against the given background. */
+function contrastText(bg: Color): Color {
+	const l = relativeLuminance(bg);
+	return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? BLACK : WHITE;
+}
 
 /** Theme tokens accepted as a mode color; anything else is parsed as a concrete color. */
 const THEME_COLOR_TOKENS = new Set<string>([
@@ -75,6 +100,8 @@ interface Mode {
 	instructions?: string;
 	/** Status-line color: a theme token ("mdLink") or a concrete color ("#7aa2f7", "oklch(250 60% 55%)", 39). */
 	color?: string | number;
+	/** Paint `color` as a background badge instead of coloring the status text. */
+	block?: boolean;
 }
 
 interface SettingsShape {
@@ -198,18 +225,29 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	/** Style text in a mode's color — theme token or concrete color, else the accent token. */
+	/** Style the status text in a mode's color — theme token or concrete color, else the accent token.
+	 * With `block`, the color becomes the background and the text is black or
+	 * white, whichever contrasts better. */
 	function paint(name: string, text: string, ctx: ExtensionContext): string {
-		const color = modes[name]?.color ?? readAgentFile(name).color;
-		if (color === undefined) return ctx.ui.theme.fg("accent", text);
-		if (typeof color === "string" && THEME_COLOR_TOKENS.has(color)) {
-			return ctx.ui.theme.fg(color as ThemeColor, text);
+		const theme = ctx.ui.theme;
+		const file = readAgentFile(name);
+		const raw = modes[name]?.color ?? file.color;
+		const block = modes[name]?.block ?? file.block ?? false;
+		if (raw === undefined) return theme.fg("accent", text);
+		if (typeof raw === "string" && THEME_COLOR_TOKENS.has(raw)) {
+			const token = raw as ThemeColor;
+			if (!block) return theme.fg(token, text);
+			const bg = theme.colors[token];
+			return theme.style(` ${text} `, { fg: contrastText(bg), bg, bold: true });
 		}
+		let color: Color;
 		try {
-			return ctx.ui.theme.style(text, { fg: parseColor(color) });
+			color = parseColor(raw);
 		} catch {
-			return ctx.ui.theme.fg("accent", text);
+			return theme.fg("accent", text);
 		}
+		if (!block) return theme.style(text, { fg: color });
+		return theme.style(` ${text} `, { fg: contrastText(color), bg: color, bold: true });
 	}
 
 	/** Resolve "deep" | "mid" | "fast" (or a literal provider/id) to {provider, id}. */
@@ -221,8 +259,8 @@ export default function (pi: ExtensionAPI) {
 		return { provider: defaultProvider ?? "deepseek", id: spec };
 	}
 
-	/** Read a tier agent file (<agentDir>/agents/<name>.md): frontmatter tools + color, and body. */
-	function readAgentFile(name: string): { tools?: string[]; color?: string | number; body?: string } {
+	/** Read a tier agent file (<agentDir>/agents/<name>.md): frontmatter tools + color/block, and body. */
+	function readAgentFile(name: string): { tools?: string[]; color?: string | number; block?: boolean; body?: string } {
 		if (!/^[A-Za-z0-9_-]+$/.test(name)) return {};
 		const p = join(getAgentDir(), "agents", `${name}.md`);
 		let raw: string;
@@ -270,15 +308,22 @@ export default function (pi: ExtensionAPI) {
 			break;
 		}
 		let color: string | number | undefined;
-		for (const line of fmLines) {
-			const m = line?.match(/^color:\s*(.+)$/);
-			if (!m) continue;
-			const raw = (m[1] ?? "").trim().replace(/^["']|["']$/g, "");
-			if (raw) color = /^\d+$/.test(raw) ? Number(raw) : raw;
-			break;
-		}
+		let block: boolean | undefined;
+		const scalar = (key: string): string | undefined => {
+			for (const line of fmLines) {
+				const m = line?.match(new RegExp(`^${key}:\\s*(.+)$`));
+				if (!m) continue;
+				const value = (m[1] ?? "").trim().replace(/^["']|["']$/g, "");
+				if (value) return value;
+			}
+			return undefined;
+		};
+		const colorValue = scalar("color");
+		if (colorValue) color = /^\d+$/.test(colorValue) ? Number(colorValue) : colorValue;
+		const blockValue = scalar("block")?.toLowerCase();
+		if (blockValue) block = blockValue === "true" || blockValue === "yes" || blockValue === "1";
 		const body = bodyLines.join("\n").trim() || undefined;
-		return { tools, color, body };
+		return { tools, color, block, body };
 	}
 
 	function persistOverride(tier: string, patch: { model?: string; thinking?: string }) {
