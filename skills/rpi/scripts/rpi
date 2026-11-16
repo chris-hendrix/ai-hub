@@ -3,17 +3,29 @@ set -euo pipefail
 
 # rpi — deterministic helpers for the rpi skill
 # Usage:
-#   rpi write  <plans|reviews|implementations|handoffs> --topic "..." [--ticket N]  # body on stdin
-#   rpi status <plan-file> <planned|in-progress|completed>
-#   rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
-#   rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
-#   rpi dev    <plan-file> <task-id> "<one line>" [--report <path>]  # record a deviation on a task
-#   rpi pickup [path] [--list]        # resolve a handoff: latest, or given path
+#   rpi write   <plans|reviews|implementations|handoffs> --topic "..." [--ticket N]  # body on stdin
+#   rpi scratch [--topic "..."]       # empty note in .rpi/scratch/, no body
+#   rpi status  <plan-file> <planned|in-progress|completed|handed-off>
+#   rpi next    <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
+#   rpi done    <plan-file> <task-id>  # mark **Task <id>** complete
+#   rpi dev     <plan-file> <task-id> "<one line>" [--report <path>]  # record a deviation on a task
+#   rpi pickup  [path] [--list]        # resolve a handoff: latest, or given path
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# docs live in .rpi/ at the root of whatever repo we're invoked from
-dr="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
-REPO_ROOT="$dr"
+# docs live in .rpi/ at the root of whatever repo we're invoked from.
+# .rpi/ is per-repo, not per-worktree: from a linked worktree, anchor on the
+# main checkout (parent of the shared git common dir) so write/status
+# see the same documents everywhere and nothing is lost when the worktree goes.
+repo_root() {
+  local common
+  if common="$(git -C "$PWD" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+     && [[ "$(basename "$common")" == ".git" ]]; then
+    dirname "$common"
+  else
+    git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || echo "$PWD"
+  fi
+}
+REPO_ROOT="$(repo_root)"
 
 rel() { echo "${1#"$REPO_ROOT"/}"; }
 
@@ -129,11 +141,11 @@ $sid"
     fi
   } > "$outpath"
 
-  # layer 1 is the human's scan layer — warn, never fail, when it grows past its budget
+  # the Summary is the human's read — warn, never fail, when it grows past its budget
   if [[ "$subdir" == "plans" ]]; then
     local l1_lines l1_prose
     read -r l1_lines l1_prose < <(printf '%s\n' "$body" | awk '
-      /^## Checklist/ { exit }
+      /^## (Details|Checklist|Briefing|Layer 2|Layer 3)/ { exit }
       /^```/ { fence = !fence; next }
       fence { next }
       { n++ }
@@ -144,9 +156,60 @@ $sid"
       END { printf "%d %d\n", n + 0, p + 0 }
     ')
     if [[ "${l1_lines:-0}" -gt 35 ]]; then
-      echo "rpi write: L1 is ${l1_lines} lines (budget 35), ${l1_prose} of them prose — layer 1 is the scan layer, move justification below the fold" >&2
+      echo "rpi write: Summary is ${l1_lines} lines (budget 35), ${l1_prose} of them prose — move justification to Details" >&2
     fi
   fi
+
+  rel "$outpath"
+}
+
+cmd_scratch() {
+  local topic=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --topic)   topic="$2"; shift 2 ;;
+      -h|--help) usage_scratch; exit 0 ;;
+      *) echo "rpi scratch: unknown option: $1" >&2; usage_scratch >&2; exit 1 ;;
+    esac
+  done
+
+  local date
+  date="$(date +%Y-%m-%d)"
+
+  local slug=""
+  if [[ -n "$topic" ]]; then
+    slug="$(kebab_case "$topic")"
+    local max_len=50
+    if [[ ${#slug} -gt $max_len ]]; then
+      slug="${slug:0:$max_len}"
+      slug="${slug%-}"  # trim a trailing partial-word hyphen left by the cut
+    fi
+  fi
+
+  local filename="${date}-$(date +%H%M%S)"
+  if [[ -n "$slug" ]]; then
+    filename="${filename}-${slug}"
+  fi
+  filename="${filename}.md"
+
+  local outdir="${REPO_ROOT}/.rpi/scratch"
+  mkdir -p "$outdir"
+  local outpath="${outdir}/${filename}"
+  # avoid silent overwrite on same-second collisions
+  local n=2
+  while [[ -e "$outpath" ]]; do
+    outpath="${outdir}/${filename%.md}-${n}.md"
+    n=$((n+1))
+  done
+
+  {
+    echo "---"
+    echo "type: scratch"
+    echo "date: ${date}"
+    echo "topic: ${topic:--}"
+    echo "---"
+    echo ""
+  } > "$outpath"
 
   rel "$outpath"
 }
@@ -222,13 +285,13 @@ cmd_next() {
     echo "Usage: rpi next <plan-file>" >&2; exit 1
   fi
   local file; file="$(resolve_plan "$1")"
-  # only the checklist region holds tasks — a layer-1 success criterion is not a task.
-  # plans with no `## Checklist` heading (legacy) are scanned whole.
+  # only the checklist region holds tasks — a Summary bullet is not a task.
+  # plans with no `## Checklist` heading (legacy layer format uses `## Layer 3`) are scanned whole.
   local scope=1
-  grep -q '^## Checklist' "$file" || scope=0
+  grep -qE '^## (Checklist|Layer 3)' "$file" || scope=0
   awk -v scope="$scope" '
     BEGIN { in_checklist = (scope == 0) }
-    /^## Checklist/ { in_checklist = 1; next }
+    /^## (Checklist|Layer 3)/ { in_checklist = 1; next }
     !in_checklist { next }
     /^- \[ \] / { if (found) exit; found=1; print; next }
     found && /^$/ { print; next }
@@ -237,7 +300,7 @@ cmd_next() {
   ' "$file"
   if ! awk -v scope="$scope" '
     BEGIN { in_checklist = (scope == 0) }
-    /^## Checklist/ { in_checklist = 1 }
+    /^## (Checklist|Layer 3)/ { in_checklist = 1 }
     in_checklist && /^- \[ \] / { found = 1 }
     END { exit !found }
   ' "$file"; then
@@ -357,11 +420,12 @@ usage() {
 rpi — deterministic helpers for the rpi skill
 
 Usage:
-  rpi write  <plans|reviews|implementations|handoffs> --topic "..." [--ticket N]  # body on stdin
-  rpi status <plan-file> <planned|in-progress|completed|handed-off>
-  rpi next   <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
-  rpi done   <plan-file> <task-id>  # mark **Task <id>** complete
-  rpi dev    <plan-file> <task-id> "<one line>" [--report <path>]  # record a deviation on a task
+  rpi write   <plans|reviews|implementations|handoffs> --topic "..." [--ticket N]  # body on stdin
+  rpi scratch [--topic "..."]       # empty note in .rpi/scratch/, no body
+  rpi status  <plan-file> <planned|in-progress|completed|handed-off>
+  rpi next    <plan-file>            # first unchecked task + its RED/GREEN/CHECK block
+  rpi done    <plan-file> <task-id>  # mark **Task <id>** complete
+  rpi dev     <plan-file> <task-id> "<one line>" [--report <path>]  # record a deviation on a task
 
 Examples:
   printf '# My plan\n...' | rpi write plans --topic "Auth refactor"
@@ -370,6 +434,19 @@ Examples:
   rpi done .rpi/plans/2026-08-30-auth-refactor.md 2
   rpi dev .rpi/plans/2026-08-30-auth-refactor.md 2 "tsc ran on the host; the container was down"
   rpi pickup .rpi/handoffs/2026-05-24-auth-refactor.md
+  rpi scratch --topic "PII scrubber ideas"
+USAGE
+}
+
+usage_scratch() {
+  cat <<'USAGE'
+rpi scratch — create an empty .rpi/scratch note (frontmatter only, no body)
+
+  --topic    optional human-readable topic, used for frontmatter and filename
+             (frontmatter still gets a topic: line — "-" if omitted;
+             filename slug is lowercase kebab-case, capped at 50 chars)
+
+Writes to .rpi/scratch/YYYY-MM-DD-HHMMSS[-kebab-topic].md and prints the path.
 USAGE
 }
 
@@ -390,12 +467,13 @@ main() {
   if [[ $# -eq 0 ]]; then usage >&2; exit 1; fi
   local cmd="$1"; shift
   case "$cmd" in
-    write)  cmd_write "$@" ;;
-    status) cmd_status "$@" ;;
-    next)   cmd_next "$@" ;;
-    done)   cmd_done "$@" ;;
-    dev)    cmd_dev "$@" ;;
-    pickup) cmd_pickup "$@" ;;
+    write)   cmd_write "$@" ;;
+    scratch) cmd_scratch "$@" ;;
+    status)  cmd_status "$@" ;;
+    next)    cmd_next "$@" ;;
+    done)    cmd_done "$@" ;;
+    dev)     cmd_dev "$@" ;;
+    pickup)  cmd_pickup "$@" ;;
     -h|--help|help) usage; exit 0 ;;
     *) echo "rpi: unknown subcommand: $cmd" >&2; usage >&2; exit 1 ;;
   esac
