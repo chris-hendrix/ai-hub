@@ -17,3 +17,4 @@ Parse the first word of the input as the keyword (`implement all [plan]` / `impl
 | `handoff [focus]` | [handoff](references/handoff.md) — summarize session for another agent |
 | `pickup [path]` | [pickup](references/pickup.md) — resume from a handoff |
 | `write` | [write](references/write.md) — save output to `.rpi/` |
+| `scratch [topic]` | [scratch](references/scratch.md) — empty frontmatter-only note in `.rpi/scratch/` |

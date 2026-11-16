@@ -18,7 +18,7 @@ ai-hub/
 │       └── agent/
 │           ├── settings.json   # tracked (modes, agentOverrides, defaultProvider)
 │           ├── agents/         # tracked tier agents: deep/mid/fast/view (*.md = single source)
-│           ├── extensions/     # tracked (modes.ts = tier modes; subagent-status.ts = footer status)
+│           ├── extensions/     # tracked (modes.ts = tier modes; subagent-status.ts = footer status; worktree-status.ts = `wt:` footer segment)
 │           └── skills/         # gitignored — reinstall per-skill via `npx skills add <name> --agent pi`
 ├── skills/rpi/             # opencode skill source of truth (pi will get its own rpi extension separately)
 ├── packages/pi-torch/      # publishable pi package: /handoff + /pickup (sessions are the only storage)
